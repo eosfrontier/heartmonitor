@@ -2,6 +2,17 @@
 
 import time, sys, os, random
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
+import pyaudio, wave
+
+beepwav = wave.open("audio/beep.wav","rb")
+
+pa = pyaudio.PyAudio()
+stream = pa.open(format = pa.get_format_from_width(beepwav.getsampwidth()),
+                 channels = beepwav.getnchannels(),
+                 rate = beepwav.getframerate(),
+                 output = True)
+
+beep = beepwav.readframes(4096)
 
 options = RGBMatrixOptions()
 options.rows = 32
@@ -30,6 +41,7 @@ try:
             elif heartbeatdelay == 15:
                 tgt = 0.93
                 spd = 0.3
+                stream.write(beep)
             elif heartbeatdelay == 18:
                 tgt = 0.1
                 spd = 0.2
