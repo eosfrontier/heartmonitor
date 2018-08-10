@@ -36,40 +36,43 @@ try:
                 matrix.SetPixel(x+3, y, 0, 0, 0)
                 matrix.SetPixel(x+4, y, 0, 0, 0)
             if heartbeatdelay == 10:
-                tgt = 0.2
+                tgt = random.randint(15,25)/100.0
                 spd = 0.1
             elif heartbeatdelay == 15:
-                tgt = 0.93
+                tgt = random.randint(90,90)/100.0
                 spd = 0.3
                 stream.write(beep)
             elif heartbeatdelay == 18:
-                tgt = 0.1
+                tgt = random.randint(5,15)/100.0
                 spd = 0.2
             elif heartbeatdelay == 22:
-                tgt = 0.5
+                tgt = random.randint(50,60)/100.0
                 spd = 0.1
-            elif heartbeatdelay == 27:
+            elif heartbeatdelay >= 27 and heartbeatdelay < 35:
+                tgt = random.randint(35,45)/100.0
+                spd = 0.1
+            elif heartbeatdelay ==35:
                 tgt = 0.4
                 spd = 0.1
             elif heartbeatdelay == 40:
                 heartbeatdelay = random.randint(-5,5)
-            ypos1 = int(matrix.height * (1.0-cur))
+            ypos1 = int(matrix.height/2 * (1.0-cur))
             if cur < tgt:
                 cur = cur + spd
                 if cur > tgt:
                     cur = tgt
                     spd = 0.0
-                ypos2 = int(matrix.height * (1.0-cur))
+                ypos2 = int(matrix.height/2 * (1.0-cur))
                 for y in range(ypos2, ypos1):
-                    matrix.SetPixel(x, y, 0, 200, 0)
+                    matrix.SetPixel(x, y, 0, 255, 0)
             elif cur > tgt:
                 cur = cur - spd
                 if cur < tgt:
                     cur = tgt
                     spd = 0.0
-                ypos2 = int(matrix.height * (1.0-cur))
+                ypos2 = int(matrix.height/2 * (1.0-cur))
                 for y in range(ypos1, ypos2):
-                    matrix.SetPixel(x, y, 0, 200, 0)
+                    matrix.SetPixel(x, y, 0, 255, 0)
             matrix.SetPixel(x, ypos1, 0, 200, 0)
             heartbeatdelay += 1
             time.sleep(0.02)
