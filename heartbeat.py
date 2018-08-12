@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import time, sys, os, random
+import time, sys, os, random, smbus
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 import pyaudio, wave
 
@@ -13,6 +13,16 @@ stream = pa.open(format = pa.get_format_from_width(beepwav.getsampwidth()),
                  output = True)
 
 beep = beepwav.readframes(4096)
+
+i2c = smbus.SMBus(1)
+mcp = 0x20
+mcp_iodir = 0x00
+mcp_gppu = 0x0c
+mcp_gpio = 0x12
+
+i2c.write_word_data(mcp, mcp_iodir, 0xFFFF)
+i2c.write_word_data(mcp, mcp_gppu, 0xFFFF)
+i2c.write_word_data(mcp, mcp_gpio, 0x0000)
 
 options = RGBMatrixOptions()
 options.rows = 32
@@ -75,6 +85,21 @@ try:
                     matrix.SetPixel(x, y, 0, 255, 0)
             matrix.SetPixel(x, ypos1, 0, 200, 0)
             heartbeatdelay += 1
+
+            buttons = i2c.read_word_data(mcp, mcp_gpio)
+            for x in range(0,16):
+                if ((buttons >> x) & 1) == 0:
+                    matrix.SetPixel(x*4+2, 30, 0, 0, 255)
+                    matrix.SetPixel(x*4+3, 30, 0, 64, 64)
+                    matrix.SetPixel(x*4+1, 30, 0, 64, 64)
+                    matrix.SetPixel(x*4+2, 31, 0, 64, 64)
+                    matrix.SetPixel(x*4+2, 29, 0, 64, 64)
+                else:
+                    matrix.SetPixel(x*4+2, 30, 0, 0, 0)
+                    matrix.SetPixel(x*4+3, 30, 0, 0, 0)
+                    matrix.SetPixel(x*4+1, 30, 0, 0, 0)
+                    matrix.SetPixel(x*4+2, 31, 0, 0, 0)
+                    matrix.SetPixel(x*4+2, 29, 0, 0, 0)
             time.sleep(0.02)
 except KeyboardInterrupt:
     sys.exit(0)
