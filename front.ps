@@ -4,24 +4,40 @@
 
 << /PageSize [842 595] >> setpagedevice
 
-0.05 setlinewidth
+0.03 setlinewidth
 28.346 28.346 scale
 
-/xcircle { 2 copy 0.8 0 360 arc closepath stroke newpath moveto -0.8 0 rmoveto 1.6 0 rlineto -0.8 0 rmoveto 0 -0.8 rmoveto 0 1.6 rlineto stroke } def
+% -15.0 0 translate
+
+/xcircle16 { newpath 2 copy 0.8 0 360 arc closepath stroke newpath moveto -0.8 0 rmoveto 1.6 0 rlineto -0.8 0 rmoveto 0 -0.8 rmoveto 0 1.6 rlineto stroke } def
+
+/xcircle7 { newpath 2 copy 0.35 0 360 arc closepath stroke newpath moveto -0.35 0 rmoveto 0.7 0 rlineto -0.35 0 rmoveto 0 -0.35 rmoveto 0 0.7 rlineto stroke } def
+
+/circle33 { newpath 1.65 0 360 arc closepath stroke } def
 
 newpath
-2.0 2.0 moveto
+2.0 19.0 moveto
 25.6 0 rlineto
-0 12.8 rlineto
--25.6 0 rlineto
 0 -12.8 rlineto
-stroke
+-25.6 0 rlineto
+closepath stroke
 
-newpath  4.56 17.36 xcircle
-newpath  9.68 17.36 xcircle
-newpath 14.80 17.36 xcircle
-newpath 19.92 17.36 xcircle
-newpath 25.04 17.36 xcircle
+ 4.56 3.64 xcircle16
+ 9.68 3.64 xcircle16
+14.80 3.64 xcircle16
+19.92 3.64 xcircle16
+25.04 3.64 xcircle16
+
+30.8 15.8 2 copy xcircle7 circle33
+30.8  9.4 2 copy xcircle7 circle33
+
+newpath
+34.5 19.0 moveto
+41.25 19.0 41.25 8.0 0.5 arct
+41.25 7.5 34.5 7.5 0.5 arct
+34.0 7.5 34.0 18.5 0.5 arct
+34.0 19.0 34.5 19.0 0.5 arct
+closepath stroke
 
 showpage
 
