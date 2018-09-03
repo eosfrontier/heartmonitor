@@ -3,6 +3,9 @@
 import time, sys, os, random, smbus
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 import pyaudio, wave
+from neopixel import *
+
+leds = Adafruit_NeoPixel(2, 13, channel=1)
 
 beepwav = wave.open("audio/beep.wav","rb")
 
@@ -27,14 +30,20 @@ try:
 except:
     pass
 
+leds.begin()
+leds.setPixelColor(0, Color(255, 255, 255))
+leds.setPixelColor(1, Color(255, 255, 255))
+leds.show()
+
 options = RGBMatrixOptions()
 options.rows = 32
 options.cols = 64
 options.disable_hardware_pulsing = True
-#options.pixel_mapper_config = "Rotate:180"
+options.pixel_mapper_config = "Rotate:180"
 
 matrix = RGBMatrix(options = options)
 
+pixs = [255,255,255,255,255,0]
 try:
     matrix.Fill(0, 0, 0)
     heartbeatdelay = 0
@@ -94,19 +103,30 @@ try:
                 buttons = i2c.read_word_data(mcp, mcp_gpio)
                 for x in range(0,16):
                     if ((buttons >> x) & 1) == 0:
+                        if x >= 0 and x <= 4:
+                            pixs[x] = 0
                         matrix.SetPixel(x*4+2, 30, 0, 0, 255)
                         matrix.SetPixel(x*4+3, 30, 0, 64, 64)
                         matrix.SetPixel(x*4+1, 30, 0, 64, 64)
                         matrix.SetPixel(x*4+2, 31, 0, 64, 64)
                         matrix.SetPixel(x*4+2, 29, 0, 64, 64)
                     else:
+                        if x >= 0 and x <= 4:
+                            if pixs[x] < 255:
+                                pixs[x] += 5
                         matrix.SetPixel(x*4+2, 30, 0, 0, 0)
                         matrix.SetPixel(x*4+3, 30, 0, 0, 0)
                         matrix.SetPixel(x*4+1, 30, 0, 0, 0)
                         matrix.SetPixel(x*4+2, 31, 0, 0, 0)
                         matrix.SetPixel(x*4+2, 29, 0, 0, 0)
+                leds.setPixelColor(0, Color(pixs[2], pixs[1], pixs[0]))
+                leds.setPixelColor(1, Color(pixs[5], pixs[4], pixs[3]))
+                leds.show()
             except:
                 pass
             time.sleep(0.02)
 except KeyboardInterrupt:
+    leds.setPixelColor(0, Color(0, 0, 0))
+    leds.setPixelColor(1, Color(0, 0, 0))
+    leds.show()
     sys.exit(0)
