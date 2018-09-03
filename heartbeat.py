@@ -112,8 +112,9 @@ try:
                         matrix.SetPixel(x*4+2, 29, 0, 64, 64)
                     else:
                         if x >= 0 and x <= 4:
-                            if pixs[x] < 255:
-                                pixs[x] += 5
+                            pixs[x] += 2
+                            if pixs[x] >= 255:
+                                pixs[x] = 255
                         matrix.SetPixel(x*4+2, 30, 0, 0, 0)
                         matrix.SetPixel(x*4+3, 30, 0, 0, 0)
                         matrix.SetPixel(x*4+1, 30, 0, 0, 0)
