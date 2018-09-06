@@ -23,6 +23,9 @@
 #define I2C_BLOCK_DATA 8
 #define MAX30102_I2C_ADDRESS 0x57
 
+#define MAX30102_FIFO_WPTR 0x04
+#define MAX30102_FIFO_OVFL 0x05
+#define MAX30102_FIFO_RPTR 0x06
 #define MAX30102_FIFO_DATA 0x07
 #define MAX30102_FIFO_CONF 0x08
 #define MAX30102_MODE_CONF 0x09
@@ -71,15 +74,27 @@ static inline int i2c_read_byte(int i2c, int reg)
     return data.byte;
 }
 
-static inline int i2c_read_block(int i2c, int reg, int size, void *bytes)
+static inline int i2c_read_block(int i2c, int reg, int size, uint8_t *bytes)
 {
     union i2c_data data;
     struct i2c_ioctl_args args = { .rw = I2C_READ, .reg = reg, .size = I2C_BLOCK_DATA, .data = &data };
     data.block[0] = (uint8_t)size;
     if (ioctl(i2c, I2C_SMBUS, &args) < 0) return -1;
-    memcpy(data.block+1, bytes, size);
+    if (data.block[0] > size) return -1;
+    memcpy(bytes, data.block+1, data.block[0]);
+    return data.block[0];
+}
+
+/*
+static inline int i2c_read_block(int i2c, int reg, int size, uint8_t *bytes)
+{
+    for (int i = 0; i < size; i++) {
+        int bt = i2c_read_byte(i2c, reg);
+        bytes[i] = bt;
+    }
     return 0;
 }
+*/
 
 static int set_mode(max30102_t *mx, uint8_t mode)
 {
@@ -103,10 +118,10 @@ static int set_currents(max30102_t *mx)
     return 0;
 }
 
-int max_update(max30102_t *mx)
+static int max_read(max30102_t *mx)
 {
     unsigned char buf[6];
-    if (i2c_read_block(mx->i2c, MAX30102_FIFO_DATA, 6, &buf) < 0) {
+    if (i2c_read_block(mx->i2c, MAX30102_FIFO_DATA, 6, buf) < 0) {
         fprintf(stderr, "Error reading FIFO data: %s\n", strerror(errno));
         return -1;
     }
@@ -123,6 +138,19 @@ int max_update(max30102_t *mx)
     return 0;
 }
 
+int max_update(max30102_t *mx)
+{
+    int wrptr = i2c_read_byte(mx->i2c, MAX30102_FIFO_WPTR);
+    int rdptr = i2c_read_byte(mx->i2c, MAX30102_FIFO_RPTR);
+    int numsmpl = wrptr - rdptr;
+    if (numsmpl < 0) numsmpl += 0x20;
+    // fprintf(stderr, "WPTR = 0x%02x, RPTR = 0x%02x, Reading %d samples\n", wrptr, rdptr, numsmpl);
+    for (int i = 0; i < numsmpl; i++) {
+        max_read(mx);
+    }
+    return 0;
+}
+
 max30102_t *max_init(void)
 {
     max30102_t *mx = malloc(sizeof(max30102_t));
@@ -132,9 +160,20 @@ max30102_t *max_init(void)
         fprintf(stderr, "Unable to start I2C MAX30102: %s\n", strerror(errno));
         return NULL;
     }
+#ifdef DEBUG
+    fprintf(stderr, "Reading old register settings\n");
+    for (int i = 0; i < 0x22; i++) {
+        int byte = i2c_read_byte(mx->i2c, i);
+        if (byte < 0) {
+            fprintf(stderr, "Read reg 0x%02x failed: %s\n", i, strerror(errno));
+        } else {
+            fprintf(stderr, "Read reg 0x%02x = 0x%02x\n", i, byte);
+        }
+    }
+#endif
     mx->pdstate = 0;
-    mx->redcurrent = 0x07;
-    mx->ircurrent = 0x08;
+    mx->redcurrent = 0x1f;
+    mx->ircurrent = 0x1f;
     mx->irw = 0;
     mx->ir = 0;
     mx->redw = 0;
@@ -156,6 +195,8 @@ max30102_t *max_init(void)
     if (set_temp_mode(mx, 0x01) < 0) {
         fprintf(stderr, "set_currents failed: %s\n", strerror(errno));
     }
+#ifdef DEBUG
+    fprintf(stderr, "Reading new register settings\n");
     for (int i = 0; i < 0x22; i++) {
         int byte = i2c_read_byte(mx->i2c, i);
         if (byte < 0) {
@@ -164,6 +205,7 @@ max30102_t *max_init(void)
             fprintf(stderr, "Read reg 0x%02x = 0x%02x\n", i, byte);
         }
     }
+#endif
     return mx;
 }
 
