@@ -1,6 +1,8 @@
 /* MAX30102 uitlees code
  */
 
+#include <stdint.h>
+
 typedef struct {
     int i2c;
     double red, ir;
