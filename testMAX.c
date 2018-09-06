@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 
     while (1) {
         max_update(mx);
-        fprintf(stderr, "Red: %12.4f IR: %12.4f\n", mx->red, mx->ir);
+        fprintf(stderr, "Red: %12.8f IR: %12.8f\n", mx->red, mx->ir);
         usleep(1000000 / 100);
     }
     exit(0);
