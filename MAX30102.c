@@ -172,8 +172,8 @@ max30102_t *max_init(void)
     }
 #endif
     mx->pdstate = 0;
-    mx->redcurrent = 0x1f;
-    mx->ircurrent = 0x1f;
+    mx->redcurrent = 0x0f;
+    mx->ircurrent = 0x07;
     mx->irw = 0;
     mx->ir = 0;
     mx->redw = 0;
