@@ -12,10 +12,12 @@ int main(int argc, char *argv[])
     }
 
     while (1) {
-        max_update(mx);
-        fprintf(stderr, "Red: %12.8f IR: %12.8f\n", mx->red, mx->ir);
+        if (max_update(mx) < 0) exit(1);
+        fprintf(stderr, "Red: %15.8f IR: %15.8f Raw: 0x%06x 0x%06x\n", mx->red, mx->ir, mx->rawred, mx->rawir);
         usleep(1000000 / 100);
+        break;
     }
+    max_fini(mx);
     exit(0);
 }
 
