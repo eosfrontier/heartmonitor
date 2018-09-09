@@ -1,9 +1,12 @@
 from smbus import SMBus
-import time
+import time,numpy
 
 class MAX30102(object):
     ALPHA = 0.95
+    AVGSIZE = 100
+
     I2C_ADDRESS = 0x57
+
     FIFO_WPTR = 0x04
     FIFO_OVFL = 0x05
     FIFO_RPTR = 0x06
@@ -19,23 +22,34 @@ class MAX30102(object):
     TEMP_CONF = 0x21
 
     def __init__(self):
-        self.i2c = SMBus(1)
         self.pdstate = 0
         self.redcurrent = 0x0f
         self.ircurrent = 0x07
+
         self.rawred = 0
-        self.red = 0
-        self.redw = 0
+        self.red = 0.0
+        self.redsum = 0.0
+
         self.rawir = 0
-        self.ir = 0
-        self.irw = 0
+        self.ir = 0.0
+        self.irsum = 0.0
+
+        self.redbuf = numpy.zeros(AVGSIZE, dtype=int)
+        self.irbuf = numpy.zeros(AVGSIZE, dtype=int)
+        self.bufidx = 0
+
         self.pulse = False
+
+        self.i2c = SMBus(1)
         self.set_reg(self.MODE_CONF, 0x40)
         time.sleep(0.01)
         self.set_reg(self.MODE_CONF, 0x03)
         self.set_reg(self.SPO2_CONF, ((0x00 << 5) | (0x01 << 2) | 0x03))
         self.set_currents()
         self.set_reg(self.TEMP_CONF, 0x01)
+
+    def close(self):
+        self.i2c.set_reg(self.MODE_CONF, 0x80)
 
     def set_reg(self, reg, byte):
         self.i2c.write_byte_data(self.I2C_ADDRESS, reg, byte)
@@ -61,13 +75,23 @@ class MAX30102(object):
         self.rawir  = (buf[0]<<16) + (buf[1]<<8) + buf[2]
         self.rawred = (buf[3]<<16) + (buf[4]<<8) + buf[5]
 
-        irw = float(self.rawir) + self.ALPHA * self.irw
-        self.ir = irw - self.irw
-        self.irw = irw
+        self.iravg -= self.irbuf[self.bufidx] 
+        self.irbuf[self.bufidx] = self.rawir
+        self.iravg += self.rawir
+        self.ir = float(self.rawir) - (float(self.iravg) / SELF.AVGSIZE)
 
-        redw = float(self.rawred) + self.ALPHA * self.redw
-        self.red = redw - self.redw
-        self.redw = redw
+        self.redavg -= self.redbuf[self.bufidx] 
+        self.redbuf[self.bufidx] = self.rawred
+        self.redavg += self.rawred
+        self.red = float(self.rawred) - (float(self.redavg) / SELF.AVGSIZE)
+
+        #irw = float(self.rawir) + self.ALPHA * self.irw
+        #self.ir = irw - self.irw
+        #self.irw = irw
+
+        #redw = float(self.rawred) + self.ALPHA * self.redw
+        #self.red = redw - self.redw
+        #self.redw = redw
         # TODO: filters, pulse detection
         
 

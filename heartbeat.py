@@ -141,4 +141,5 @@ except KeyboardInterrupt:
     leds.setPixelColor(0, Color(0, 0, 0))
     leds.setPixelColor(1, Color(0, 0, 0))
     leds.show()
+    mx.close()
     sys.exit(0)
