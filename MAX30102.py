@@ -1,4 +1,5 @@
 from smbus import SMBus
+import time
 
 class MAX30102(object):
     ALPHA = 0.95
@@ -28,20 +29,23 @@ class MAX30102(object):
         self.rawir = 0
         self.ir = 0
         self.irw = 0
-        self.set_reg(self.MODE_CONF, 0x43)
-        self.set_reg(self.SPO2_CONF, ((0x00 << 5) | (0x01 << 2) | 0x03)
+        self.pulse = False
+        self.set_reg(self.MODE_CONF, 0x40)
+        time.sleep(0.01)
+        self.set_reg(self.MODE_CONF, 0x03)
+        self.set_reg(self.SPO2_CONF, ((0x00 << 5) | (0x01 << 2) | 0x03))
         self.set_currents()
         self.set_reg(self.TEMP_CONF, 0x01)
 
     def set_reg(self, reg, byte):
         self.i2c.write_byte_data(self.I2C_ADDRESS, reg, byte)
 
-    def set_currents(self)
+    def set_currents(self):
         self.i2c.write_byte_data(self.I2C_ADDRESS, self.RED_AMPL, self.redcurrent)
         self.i2c.write_byte_data(self.I2C_ADDRESS, self.IR_AMPL, self.ircurrent)
 
     def update(self):
-        wptr = self.i2c.read_byte_data(self.I2C_ADDRESS, self.FIFO_wPTR)
+        wptr = self.i2c.read_byte_data(self.I2C_ADDRESS, self.FIFO_WPTR)
         rptr = self.i2c.read_byte_data(self.I2C_ADDRESS, self.FIFO_RPTR)
         if (wptr < rptr):
             wptr += 0x20
@@ -53,7 +57,7 @@ class MAX30102(object):
         self.pulse = pulse
 
     def _read(self):
-        buf = self.i2c.read_block_data(self.I2C_ADDRESS, self.FIFO_DATA, 6)
+        buf = self.i2c.read_i2c_block_data(self.I2C_ADDRESS, self.FIFO_DATA, 6)
         self.rawir  = (buf[0]<<16) + (buf[1]<<8) + buf[2]
         self.rawred = (buf[3]<<16) + (buf[4]<<8) + buf[5]
 

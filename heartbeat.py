@@ -4,8 +4,10 @@ import time, sys, os, random, smbus
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 import pyaudio, wave
 from neopixel import *
+import MAX30102
 
 leds = Adafruit_NeoPixel(2, 13, channel=1)
+mx = MAX30102.MAX30102()
 
 beepwav = wave.open("audio/beep.wav","rb")
 
@@ -46,7 +48,7 @@ matrix = RGBMatrix(options = options)
 pixs = [255,255,255,255,255,0]
 try:
     matrix.Fill(0, 0, 0)
-    heartbeatdelay = 0
+    heartbeatdelay = -1
     cur = 0.4
     tgt = 0.4
     spd = 0.1
@@ -58,6 +60,14 @@ try:
                 matrix.SetPixel(x+2, y, 0, 0, 0)
                 matrix.SetPixel(x+3, y, 0, 0, 0)
                 matrix.SetPixel(x+4, y, 0, 0, 0)
+            mx.update()
+            if heartbeatdelay == -1:
+                tgt = 0.5 - (mx.ir / 400.0)
+                spd = 1.0
+                if tgt > 1.0:
+                    tgt = 1.0
+                if tgt < 0.0:
+                    tgt = 0.0
             if heartbeatdelay == 10:
                 tgt = random.randint(15,25)/100.0
                 spd = 0.1
@@ -97,7 +107,8 @@ try:
                 for y in range(ypos1, ypos2):
                     matrix.SetPixel(x, y, 0, 255, 0)
             matrix.SetPixel(x, ypos1, 0, 200, 0)
-            heartbeatdelay += 1
+            if heartbeatdelay >= 0:
+                heartbeatdelay += 1
 
             try:
                 buttons = i2c.read_word_data(mcp, mcp_gpio)
