@@ -25,17 +25,11 @@ mcp_iodir = 0x00
 mcp_gppu = 0x0c
 mcp_gpio = 0x12
 
-try:
-    i2c.write_word_data(mcp, mcp_iodir, 0xFFFF)
-    i2c.write_word_data(mcp, mcp_gppu, 0xFFFF)
-    i2c.write_word_data(mcp, mcp_gpio, 0x0000)
-except:
-    pass
+i2c.write_word_data(mcp, mcp_iodir, 0xFFFF)
+i2c.write_word_data(mcp, mcp_gppu, 0xFFFF)
+i2c.write_word_data(mcp, mcp_gpio, 0x0000)
 
 leds.begin()
-leds.setPixelColor(0, Color(255, 255, 255))
-leds.setPixelColor(1, Color(255, 255, 255))
-leds.show()
 
 options = RGBMatrixOptions()
 options.rows = 32
@@ -62,7 +56,7 @@ try:
                 matrix.SetPixel(x+4, y, 0, 0, 0)
             mx.update()
             if heartbeatdelay == -1:
-                tgt = 0.5 - (mx.ir / 400.0)
+                tgt = 0.5 - (mx.ir / 300.0)
                 spd = 1.0
                 if tgt > 1.0:
                     tgt = 1.0
@@ -141,5 +135,5 @@ except KeyboardInterrupt:
     leds.setPixelColor(0, Color(0, 0, 0))
     leds.setPixelColor(1, Color(0, 0, 0))
     leds.show()
-    mx.close()
+    #mx.close()
     sys.exit(0)
