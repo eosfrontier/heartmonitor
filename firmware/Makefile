@@ -1,16 +1,16 @@
 DEVICE=attiny85
 F_CPU=16500000
 
-USBDRV_OBJECTS=v-usb/usbdrv/usbdrv.o v-usb/usbdrv/usbdrvasm.o v-usb/usbdrv/oddebug.o
+USBDRV_OBJECTS=usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o usbdrv/osccal.o
 PADDLE_OBJECTS=paddle.o $(USBDRV_OBJECTS)
 
 CC=avr-gcc
-CFLAGS=-mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -Wall -Os -Iv-usb/usbdrv -I. -DDEBUG_LEVEL=0
+CFLAGS=-mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -Wall -Os -I. -Iusbdrv -DDEBUG_LEVEL=0
 LDFLAGS=-mmcu=$(DEVICE)
 
 all: paddle.hex
 
-%.o: %.c
+%.o: %.c usbconfig.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.S
@@ -18,14 +18,14 @@ all: paddle.hex
 
 # file targets:
 paddle.bin: $(PADDLE_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+	$(CC) $(LDFLAGS) -o $@ $^
 
 install-paddle: paddle.hex
-	micronucleus $<
+	micronucleus --run $<
 
 %.hex: %.bin
 	avr-objcopy -j .text -j .data -O ihex $< $@
 	avr-size $@
 
 clean:
-	rm -f *.o *.bin *.hex
+	rm -f *.o *.bin *.hex usbdrv/*.o

@@ -3,6 +3,7 @@
 #include <util/delay.h>
 #include <avr/pgmspace.h>   /* required by usbdrv.h */
 #include "usbdrv.h"
+#include "osccal.h"
 
 #define LED_PORT_DDR        DDRB
 #define LED_PORT_OUTPUT     PORTB
@@ -28,7 +29,14 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
 usbRequest_t    *rq = (void *)data;
 static uchar    dataBuffer[4];  /* buffer must stay valid when usbFunctionSetup returns */
+static uchar bitstat = 0;
 
+    bitstat ^= 1;
+    if (bitstat) {
+	LED_PORT_OUTPUT |= _BV(LED_BIT);
+    } else {
+        LED_PORT_OUTPUT &= ~_BV(LED_BIT);
+    }
     if(rq->bRequest == CUSTOM_RQ_ECHO){ /* echo -- used for reliability tests */
         dataBuffer[0] = rq->wValue.bytes[0];
         dataBuffer[1] = rq->wValue.bytes[1];
@@ -52,34 +60,30 @@ static uchar    dataBuffer[4];  /* buffer must stay valid when usbFunctionSetup 
 
 /* ------------------------------------------------------------------------- */
 
-int __attribute__((noreturn)) main(void)
+int main(void)
 {
-uchar   i;
+    // uchar   i;
 
-    wdt_disable(WDTO_1S);
-    /* If you don't use the watchdog, replace the call above with a wdt_disable().
-     * On newer devices, the status of the watchdog (on/off, period) is PRESERVED
-     * OVER RESET!
-     */
     /* RESET status: all port bits are inputs without pull-up.
      * That's the way we need D+ and D-. Therefore we don't need any
      * additional hardware initialization.
      */
-    odDebugInit();
-    DBG1(0x00, 0, 0);       /* debug output: main starts */
+    cli();
     usbInit();
     usbDeviceDisconnect();  /* enforce re-enumeration, do this while interrupts are disabled! */
-    i = 0;
-    while(--i){             /* fake USB disconnect for > 250 ms */
-        // wdt_reset();
-        _delay_ms(1);
-    }
+    _delay_ms(250);
     usbDeviceConnect();
-    LED_PORT_DDR |= _BV(LED_BIT);   /* make the LED bit an output */
     sei();
-    DBG1(0x01, 0, 0);       /* debug output: main loop starts */
+    LED_PORT_DDR |= _BV(LED_BIT);   /* make the LED bit an output */
+    // i = 0;
     for(;;){                /* main event loop */
-        DBG1(0x02, 0, 0);   /* debug output: main loop iterates */
+	/*
+	if (--i < 128) {
+	    LED_PORT_OUTPUT |= _BV(LED_BIT);
+	} else {
+	    LED_PORT_OUTPUT &= ~_BV(LED_BIT);
+	}
+	*/
         // wdt_reset();
         usbPoll();
     }

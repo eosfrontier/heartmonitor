@@ -1,3 +1,0 @@
-[submodule "firmware/v-usb"]
-	path = firmware/v-usb
-	url = https://github.com/obdev/v-usb.git
