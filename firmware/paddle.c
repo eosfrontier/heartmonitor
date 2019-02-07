@@ -7,7 +7,7 @@
 
 #define LED_PORT_DDR        DDRB
 #define LED_PORT_OUTPUT     PORTB
-#define LED_BIT             1
+#define LED_BIT             2
 
 #include <avr/io.h>
 #include <avr/wdt.h>
@@ -21,6 +21,9 @@
 #define CUSTOM_RQ_SET_STATUS    1
 #define CUSTOM_RQ_GET_STATUS    2
 
+uchar cur_rgb[3];
+uchar tgt_rgb[3];
+
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
@@ -29,14 +32,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
 usbRequest_t    *rq = (void *)data;
 static uchar    dataBuffer[4];  /* buffer must stay valid when usbFunctionSetup returns */
-static uchar bitstat = 0;
 
-    bitstat ^= 1;
-    if (bitstat) {
-	LED_PORT_OUTPUT |= _BV(LED_BIT);
-    } else {
-        LED_PORT_OUTPUT &= ~_BV(LED_BIT);
-    }
     if(rq->bRequest == CUSTOM_RQ_ECHO){ /* echo -- used for reliability tests */
         dataBuffer[0] = rq->wValue.bytes[0];
         dataBuffer[1] = rq->wValue.bytes[1];
@@ -45,47 +41,109 @@ static uchar bitstat = 0;
         usbMsgPtr = dataBuffer;         /* tell the driver which data to return */
         return 4;
     }else if(rq->bRequest == CUSTOM_RQ_SET_STATUS){
-        if(rq->wValue.bytes[0] & 1){    /* set LED */
-            LED_PORT_OUTPUT |= _BV(LED_BIT);
-        }else{                          /* clear LED */
-            LED_PORT_OUTPUT &= ~_BV(LED_BIT);
-        }
+	tgt_rgb[0] = rq->wValue.bytes[0];
+	tgt_rgb[1] = rq->wValue.bytes[1];
+	tgt_rgb[2] = rq->wIndex.bytes[0];
     }else if(rq->bRequest == CUSTOM_RQ_GET_STATUS){
-        dataBuffer[0] = ((LED_PORT_OUTPUT & _BV(LED_BIT)) != 0);
+        dataBuffer[0] = cur_rgb[0];
+        dataBuffer[1] = cur_rgb[1];
+        dataBuffer[2] = cur_rgb[2];
         usbMsgPtr = dataBuffer;         /* tell the driver which data to return */
-        return 1;                       /* tell the driver to send 1 byte */
+        return 3;                       /* tell the driver to send 3 byte */
     }
     return 0;   /* default for not implemented requests: return no data back to host */
 }
 
 /* ------------------------------------------------------------------------- */
 
+#define NS_PER_CYCLE (1000000000 / F_CPU)
+#define NS_TO_CYCLES(n) ((n)/NS_PER_CYCLE)
+#define DELAY_CYCLES(n) ((((n)>0) ? __builtin_avr_delay_cycles(n) : __builtin_avr_delay_cycles(0)))
+
+void send_bit(uchar) __attribute__ ((optimize(0)));
+
+void send_bit(uchar bitval)
+{
+    if (bitval) {
+	asm volatile (
+		"sbi %[port], %[bit] \n\t"
+		".rept %[onCycles] \n\t"
+		"nop \n\t"
+		".endr \n\t"
+		"cbi %[port], %[bit] \n\t"
+		".rept %[offCycles] \n\t"
+		"nop \n\t"
+		".endr \n\t"
+		::
+		[port]      "I" (_SFR_IO_ADDR(LED_PORT_OUTPUT)),
+		[bit]       "I" (LED_BIT),
+		[onCycles]  "I" (NS_TO_CYCLES(900)-2),
+		[offCycles] "I" (NS_TO_CYCLES(600)-10)
+		);
+    } else {
+	asm volatile (
+		"cli \n\t"
+		"sbi %[port], %[bit] \n\t"
+		".rept %[onCycles] \n\t"
+		"nop \n\t"
+		".endr \n\t"
+		"cbi %[port], %[bit] \n\t"
+		"sei \n\t"
+		".rept %[offCycles] \n\t"
+		"nop \n\t"
+		".endr \n\t"
+		::
+		[port]      "I" (_SFR_IO_ADDR(LED_PORT_OUTPUT)),
+		[bit]       "I" (LED_BIT),
+		[onCycles]  "I" (NS_TO_CYCLES(400)-2),
+		[offCycles] "I" (NS_TO_CYCLES(900)-10)
+		);
+    }
+}
+
+void send_led()
+{
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[0] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[1] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[2] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[0] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[1] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[2] & x); }
+}
+
 int main(void)
 {
-    // uchar   i;
-
-    /* RESET status: all port bits are inputs without pull-up.
-     * That's the way we need D+ and D-. Therefore we don't need any
-     * additional hardware initialization.
-     */
+    cur_rgb[0] = 1;
+    cur_rgb[1] = 1;
+    cur_rgb[2] = 1;
+    tgt_rgb[0] = 0;
+    tgt_rgb[1] = 0;
+    tgt_rgb[2] = 0;
     cli();
     usbInit();
     usbDeviceDisconnect();  /* enforce re-enumeration, do this while interrupts are disabled! */
     _delay_ms(250);
     usbDeviceConnect();
     sei();
-    LED_PORT_DDR |= _BV(LED_BIT);   /* make the LED bit an output */
-    // i = 0;
+    LED_PORT_DDR |= _BV(LED_BIT);
+    int delay = 0;
     for(;;){                /* main event loop */
-	/*
-	if (--i < 128) {
-	    LED_PORT_OUTPUT |= _BV(LED_BIT);
-	} else {
-	    LED_PORT_OUTPUT &= ~_BV(LED_BIT);
-	}
-	*/
-        // wdt_reset();
         usbPoll();
+	if (delay <= 0) {
+	    if (cur_rgb[0] != tgt_rgb[0] || cur_rgb[1] != tgt_rgb[1] || cur_rgb[2] != tgt_rgb[2]) {
+		if (cur_rgb[0] < tgt_rgb[0]) { cur_rgb[0]++; }
+		else if (cur_rgb[0] > tgt_rgb[0]) { cur_rgb[0]--; }
+		if (cur_rgb[1] < tgt_rgb[1]) { cur_rgb[1]++; }
+		else if (cur_rgb[1] > tgt_rgb[1]) { cur_rgb[1]--; }
+		if (cur_rgb[2] < tgt_rgb[2]) { cur_rgb[2]++; }
+		else if (cur_rgb[2] > tgt_rgb[2]) { cur_rgb[2]--; }
+		send_led();
+	    }
+	    delay = 20;
+	} else {
+	    delay--;
+	}
+	_delay_ms(1);
     }
 }
 
