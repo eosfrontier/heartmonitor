@@ -2,6 +2,7 @@
 #include <avr/interrupt.h>  /* for sei() */
 #include <util/delay.h>
 #include <avr/pgmspace.h>   /* required by usbdrv.h */
+#include <string.h>
 #include "usbdrv.h"
 #include "osccal.h"
 
@@ -20,8 +21,8 @@
 #define CUSTOM_RQ_SET_STATUS    1
 #define CUSTOM_RQ_GET_STATUS    2
 
-static uchar cur_rgb[3];
-static uchar tgt_rgb[3];
+static uchar cur_rgb[6];
+static uchar tgt_rgb[6];
 
 static uchar report_out[1];
 
@@ -33,12 +34,8 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
     usbRequest_t    *rq = (void *)data;
 
-    if ((rq->bRequest & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS) {
-        if (rq->bRequest == USBRQ_HID_SET_REPORT) {
-            return USB_NO_MSG;
-        }
-    } else {
-        /* Do nothing */
+    if (rq->bRequest == USBRQ_HID_SET_REPORT) {
+        return USB_NO_MSG;
     }
     return 0;
 }
@@ -46,7 +43,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
     uchar i;
-    if (len > 3) len = 3;
+    if (len > 6) len = 6;
     for (i = 0; i < len; i++) {
         tgt_rgb[i] = data[i];
     }
@@ -105,43 +102,53 @@ void send_led()
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[0] & x); }
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[1] & x); }
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[2] & x); }
-    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[0] & x); }
-    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[1] & x); }
-    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[2] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[3] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[4] & x); }
+    for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[5] & x); }
 }
 
 int main(void)
 {
     cli();
+    DDRB = _BV(LED_BIT);      /* Only led pin is output */
+    PORTB = _BV(BUTTON_BIT);  /* Pullup for button pin */
     usbInit();
-    usbDeviceDisconnect();  /* enforce re-enumeration, do this while interrupts are disabled! */
+    usbDeviceDisconnect();    /* enforce re-enumeration, do this while interrupts are disabled! */
     _delay_ms(250);
     usbDeviceConnect();
     sei();
-    DDRB |= _BV(LED_BIT);
-
-    DDRB &= ~_BV(BUTTON_BIT);
-    PORTB |= _BV(BUTTON_BIT);
 
     cur_rgb[0] = 1;
     cur_rgb[1] = 1;
     cur_rgb[2] = 1;
+    cur_rgb[3] = 1;
+    cur_rgb[4] = 1;
+    cur_rgb[5] = 1;
     tgt_rgb[0] = 0;
     tgt_rgb[1] = 0;
     tgt_rgb[2] = 0;
+    tgt_rgb[3] = 0;
+    tgt_rgb[4] = 0;
+    tgt_rgb[5] = 0;
     report_out[0] = 0;
     usbSetInterrupt(report_out, 1);
-    int delay = 0;
+    uchar delay = 0;
     for(;;){                /* main event loop */
         usbPoll();
         if (++delay >= 10) {
-            if (cur_rgb[0] != tgt_rgb[0] || cur_rgb[1] != tgt_rgb[1] || cur_rgb[2] != tgt_rgb[2]) {
+            if (memcmp(cur_rgb, tgt_rgb, 6)) {
                 if (cur_rgb[0] < tgt_rgb[0]) { cur_rgb[0]++; }
                 else if (cur_rgb[0] > tgt_rgb[0]) { cur_rgb[0]--; }
                 if (cur_rgb[1] < tgt_rgb[1]) { cur_rgb[1]++; }
                 else if (cur_rgb[1] > tgt_rgb[1]) { cur_rgb[1]--; }
                 if (cur_rgb[2] < tgt_rgb[2]) { cur_rgb[2]++; }
                 else if (cur_rgb[2] > tgt_rgb[2]) { cur_rgb[2]--; }
+                if (cur_rgb[3] < tgt_rgb[3]) { cur_rgb[3]++; }
+                else if (cur_rgb[3] > tgt_rgb[3]) { cur_rgb[3]--; }
+                if (cur_rgb[4] < tgt_rgb[4]) { cur_rgb[4]++; }
+                else if (cur_rgb[4] > tgt_rgb[4]) { cur_rgb[4]--; }
+                if (cur_rgb[5] < tgt_rgb[5]) { cur_rgb[5]++; }
+                else if (cur_rgb[5] > tgt_rgb[5]) { cur_rgb[5]--; }
                 send_led();
             }
             delay = 0;
@@ -171,8 +178,12 @@ PROGMEM const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] 
     0x95, 0x01,                     //   REPORT_COUNT (1)
     0x81, 0x02,                     //   INPUT (Data,Var,Abs)
 
-    0x06, 0x00, 0xff,               //   USAGE_PAGE (Vendor Defined Page 1)
-    0x09, 0x01,                     //   USAGE (Vendor Usage 1)
+    0x75, 0x01,                     //   REPORT_SIZE (1)
+    0x95, 0x07,                     //   REPORT_COUNT (7)
+    0x81, 0x01,                     //   INPUT (Cnst,Ary,Abs)
+
+    0x05, 0x8c,                     //   USAGE_PAGE (ST Page)
+    0x09, 0x05,                     //   USAGE (PWM Out)
     0x15, 0x00,                     //   LOGICAL_MINIMUM (0)
     0x26, 0xff, 0x00,               //   LOGICAL_MAXIMUM (255)
     0x75, 0x08,                     //   REPORT_SIZE (8)
