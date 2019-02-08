@@ -5,8 +5,7 @@
 #include "usbdrv.h"
 #include "osccal.h"
 
-#define LED_PORT_DDR        DDRB
-#define LED_PORT_OUTPUT     PORTB
+#define BUTTON_BIT          0
 #define LED_BIT             2
 
 #include <avr/io.h>
@@ -21,8 +20,10 @@
 #define CUSTOM_RQ_SET_STATUS    1
 #define CUSTOM_RQ_GET_STATUS    2
 
-uchar cur_rgb[3];
-uchar tgt_rgb[3];
+static uchar cur_rgb[3];
+static uchar tgt_rgb[3];
+
+static uchar report_out[1];
 
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
@@ -30,28 +31,26 @@ uchar tgt_rgb[3];
 
 usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
-usbRequest_t    *rq = (void *)data;
-static uchar    dataBuffer[4];  /* buffer must stay valid when usbFunctionSetup returns */
+    usbRequest_t    *rq = (void *)data;
 
-    if(rq->bRequest == CUSTOM_RQ_ECHO){ /* echo -- used for reliability tests */
-        dataBuffer[0] = rq->wValue.bytes[0];
-        dataBuffer[1] = rq->wValue.bytes[1];
-        dataBuffer[2] = rq->wIndex.bytes[0];
-        dataBuffer[3] = rq->wIndex.bytes[1];
-        usbMsgPtr = dataBuffer;         /* tell the driver which data to return */
-        return 4;
-    }else if(rq->bRequest == CUSTOM_RQ_SET_STATUS){
-	tgt_rgb[0] = rq->wValue.bytes[0];
-	tgt_rgb[1] = rq->wValue.bytes[1];
-	tgt_rgb[2] = rq->wIndex.bytes[0];
-    }else if(rq->bRequest == CUSTOM_RQ_GET_STATUS){
-        dataBuffer[0] = cur_rgb[0];
-        dataBuffer[1] = cur_rgb[1];
-        dataBuffer[2] = cur_rgb[2];
-        usbMsgPtr = dataBuffer;         /* tell the driver which data to return */
-        return 3;                       /* tell the driver to send 3 byte */
+    if ((rq->bRequest & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS) {
+        if (rq->bRequest == USBRQ_HID_SET_REPORT) {
+            return USB_NO_MSG;
+        }
+    } else {
+        /* Do nothing */
     }
-    return 0;   /* default for not implemented requests: return no data back to host */
+    return 0;
+}
+
+uchar usbFunctionWrite(uchar *data, uchar len)
+{
+    uchar i;
+    if (len > 3) len = 3;
+    for (i = 0; i < len; i++) {
+        tgt_rgb[i] = data[i];
+    }
+    return 1;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -65,39 +64,39 @@ void send_bit(uchar) __attribute__ ((optimize(0)));
 void send_bit(uchar bitval)
 {
     if (bitval) {
-	asm volatile (
-		"sbi %[port], %[bit] \n\t"
-		".rept %[onCycles] \n\t"
-		"nop \n\t"
-		".endr \n\t"
-		"cbi %[port], %[bit] \n\t"
-		".rept %[offCycles] \n\t"
-		"nop \n\t"
-		".endr \n\t"
-		::
-		[port]      "I" (_SFR_IO_ADDR(LED_PORT_OUTPUT)),
-		[bit]       "I" (LED_BIT),
-		[onCycles]  "I" (NS_TO_CYCLES(900)-2),
-		[offCycles] "I" (NS_TO_CYCLES(600)-10)
-		);
+        asm volatile (
+                "sbi %[port], %[bit] \n\t"
+                ".rept %[onCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                "cbi %[port], %[bit] \n\t"
+                ".rept %[offCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                ::
+                [port]      "I" (_SFR_IO_ADDR(PORTB)),
+                [bit]       "I" (LED_BIT),
+                [onCycles]  "I" (NS_TO_CYCLES(900)-2),
+                [offCycles] "I" (NS_TO_CYCLES(600)-10)
+                );
     } else {
-	asm volatile (
-		"cli \n\t"
-		"sbi %[port], %[bit] \n\t"
-		".rept %[onCycles] \n\t"
-		"nop \n\t"
-		".endr \n\t"
-		"cbi %[port], %[bit] \n\t"
-		"sei \n\t"
-		".rept %[offCycles] \n\t"
-		"nop \n\t"
-		".endr \n\t"
-		::
-		[port]      "I" (_SFR_IO_ADDR(LED_PORT_OUTPUT)),
-		[bit]       "I" (LED_BIT),
-		[onCycles]  "I" (NS_TO_CYCLES(400)-2),
-		[offCycles] "I" (NS_TO_CYCLES(900)-10)
-		);
+        asm volatile (
+                "cli \n\t"
+                "sbi %[port], %[bit] \n\t"
+                ".rept %[onCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                "cbi %[port], %[bit] \n\t"
+                "sei \n\t"
+                ".rept %[offCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                ::
+                [port]      "I" (_SFR_IO_ADDR(PORTB)),
+                [bit]       "I" (LED_BIT),
+                [onCycles]  "I" (NS_TO_CYCLES(400)-2),
+                [offCycles] "I" (NS_TO_CYCLES(900)-10)
+                );
     }
 }
 
@@ -113,53 +112,75 @@ void send_led()
 
 int main(void)
 {
-    cur_rgb[0] = 1;
-    cur_rgb[1] = 1;
-    cur_rgb[2] = 1;
-    tgt_rgb[0] = 0;
-    tgt_rgb[1] = 0;
-    tgt_rgb[2] = 0;
     cli();
     usbInit();
     usbDeviceDisconnect();  /* enforce re-enumeration, do this while interrupts are disabled! */
     _delay_ms(250);
     usbDeviceConnect();
     sei();
-    LED_PORT_DDR |= _BV(LED_BIT);
+    DDRB |= _BV(LED_BIT);
+
+    DDRB &= ~_BV(BUTTON_BIT);
+    PORTB |= _BV(BUTTON_BIT);
+
+    cur_rgb[0] = 1;
+    cur_rgb[1] = 1;
+    cur_rgb[2] = 1;
+    tgt_rgb[0] = 0;
+    tgt_rgb[1] = 0;
+    tgt_rgb[2] = 0;
+    report_out[0] = 0;
+    usbSetInterrupt(report_out, 1);
     int delay = 0;
     for(;;){                /* main event loop */
         usbPoll();
-	if (delay <= 0) {
-	    if (cur_rgb[0] != tgt_rgb[0] || cur_rgb[1] != tgt_rgb[1] || cur_rgb[2] != tgt_rgb[2]) {
-		if (cur_rgb[0] < tgt_rgb[0]) { cur_rgb[0]++; }
-		else if (cur_rgb[0] > tgt_rgb[0]) { cur_rgb[0]--; }
-		if (cur_rgb[1] < tgt_rgb[1]) { cur_rgb[1]++; }
-		else if (cur_rgb[1] > tgt_rgb[1]) { cur_rgb[1]--; }
-		if (cur_rgb[2] < tgt_rgb[2]) { cur_rgb[2]++; }
-		else if (cur_rgb[2] > tgt_rgb[2]) { cur_rgb[2]--; }
-		send_led();
-	    }
-	    delay = 20;
-	} else {
-	    delay--;
-	}
-	_delay_ms(1);
+        if (++delay >= 10) {
+            if (cur_rgb[0] != tgt_rgb[0] || cur_rgb[1] != tgt_rgb[1] || cur_rgb[2] != tgt_rgb[2]) {
+                if (cur_rgb[0] < tgt_rgb[0]) { cur_rgb[0]++; }
+                else if (cur_rgb[0] > tgt_rgb[0]) { cur_rgb[0]--; }
+                if (cur_rgb[1] < tgt_rgb[1]) { cur_rgb[1]++; }
+                else if (cur_rgb[1] > tgt_rgb[1]) { cur_rgb[1]--; }
+                if (cur_rgb[2] < tgt_rgb[2]) { cur_rgb[2]++; }
+                else if (cur_rgb[2] > tgt_rgb[2]) { cur_rgb[2]--; }
+                send_led();
+            }
+            delay = 0;
+        }
+        if (usbInterruptIsReady()) {
+            uchar report = (PINB & _BV(BUTTON_BIT)) ? 0 : 1;
+            if (report != report_out[0]) {
+                report_out[0] = report;
+                usbSetInterrupt(report_out, 1);
+            }
+        }
+        _delay_ms(1);
     }
 }
 
-/*
 PROGMEM const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {
-    0x06, 0x00, 0xff,              // USAGE_PAGE (Generic Desktop)
-    0x09, 0x01,                    // USAGE (Vendor Usage 1)
-    0xa1, 0x01,                    // COLLECTION (Application)
-    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-    0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-    0x75, 0x08,                    //   REPORT_SIZE (8)
-    0x95, 0x80,                    //   REPORT_COUNT (128)
-    0x09, 0x00,                    //   USAGE (Undefined)
-    0xb2, 0x02, 0x01,              //   FEATURE (Data,Var,Abs,Buf)
-    0xc0                           // END_COLLECTION
+    0x05, 0x01,                     // USAGE_PAGE (Generic Desktop)
+    0x09, 0x05,                     // USAGE (Game Pad)
+    0xa1, 0x01,                     // COLLECTION (Application)
+
+    0x05, 0x09,                     //   USAGE_PAGE (Button)
+    0x19, 0x01,                     //   USAGE_MINIMUM (1)
+    0x29, 0x01,                     //   USAGE_MAXIMUM (1)
+    0x15, 0x00,                     //   LOGICAL_MINIMUM (0)
+    0x25, 0x01,                     //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01,                     //   REPORT_SIZE (1)
+    0x95, 0x01,                     //   REPORT_COUNT (1)
+    0x81, 0x02,                     //   INPUT (Data,Var,Abs)
+
+    0x06, 0x00, 0xff,               //   USAGE_PAGE (Vendor Defined Page 1)
+    0x09, 0x01,                     //   USAGE (Vendor Usage 1)
+    0x15, 0x00,                     //   LOGICAL_MINIMUM (0)
+    0x26, 0xff, 0x00,               //   LOGICAL_MAXIMUM (255)
+    0x75, 0x08,                     //   REPORT_SIZE (8)
+    0x95, 0x03,                     //   REPORT_COUNT (3)
+    0x91, 0x02,                     //   OUTPUT (Data, Var, Abs)
+    0xc0                            // END_COLLECTION
 };
-*/
 
 /* ------------------------------------------------------------------------- */
+/* vim: ai:si:expandtab:ts=4:sw=4
+ */
