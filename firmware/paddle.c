@@ -4,7 +4,6 @@
 #include <avr/pgmspace.h>   /* required by usbdrv.h */
 #include <string.h>
 #include "usbdrv.h"
-#include "osccal.h"
 
 #define BUTTON_BIT          0
 #define LED_BIT             2
@@ -78,13 +77,11 @@ void send_bit(uchar bitval)
                 );
     } else {
         asm volatile (
-                "cli \n\t"
                 "sbi %[port], %[bit] \n\t"
                 ".rept %[onCycles] \n\t"
                 "nop \n\t"
                 ".endr \n\t"
                 "cbi %[port], %[bit] \n\t"
-                "sei \n\t"
                 ".rept %[offCycles] \n\t"
                 "nop \n\t"
                 ".endr \n\t"
@@ -99,12 +96,14 @@ void send_bit(uchar bitval)
 
 void send_led()
 {
+    cli();
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[0] & x); }
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[1] & x); }
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[2] & x); }
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[3] & x); }
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[4] & x); }
     for (uchar x = 0x80; x > 0; x >>= 1) { send_bit(cur_rgb[5] & x); }
+    sei();
 }
 
 int main(void)
@@ -182,8 +181,7 @@ PROGMEM const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] 
     0x95, 0x07,                     //   REPORT_COUNT (7)
     0x81, 0x01,                     //   INPUT (Cnst,Ary,Abs)
 
-    0x05, 0x8c,                     //   USAGE_PAGE (ST Page)
-    0x09, 0x05,                     //   USAGE (PWM Out)
+    0x05, 0x08,                     //   USAGE (LEDs)
     0x15, 0x00,                     //   LOGICAL_MINIMUM (0)
     0x26, 0xff, 0x00,               //   LOGICAL_MAXIMUM (255)
     0x75, 0x08,                     //   REPORT_SIZE (8)
