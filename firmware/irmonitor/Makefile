@@ -2,7 +2,7 @@ DEVICE=attiny85
 F_CPU=16500000
 
 USBDRV_OBJECTS=usbdrv.o usbdrvasm.o oddebug.o osccal.o
-OBJECTS=main.o $(USBDRV_OBJECTS)
+OBJECTS=main.o usi_i2c_master.o $(USBDRV_OBJECTS)
 
 CC=avr-gcc
 CFLAGS=-mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -Wall -Os -I. -I../usbdrv -DDEBUG_LEVEL=0
