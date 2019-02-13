@@ -4,7 +4,7 @@
 #include <avr/pgmspace.h>   /* required by usbdrv.h */
 #include <string.h>
 #include "usbdrv.h"
-#include "usi_i2c_master.h"
+#include "i2c_master.h"
 
 #define LED_BIT          1
 
@@ -72,29 +72,22 @@ uchar usbFunctionRead(uchar *data, uchar len)
 
 void i2c_setreg(uchar reg, uchar val)
 {
-    uchar msg[3];
-    msg[0] = MX_I2C_ADDR << 1;
-    msg[1] = reg;
-    msg[2] = val;
-    errstate |= USI_I2C_Master_Write(msg, 3);
+    errstate |= I2C_Master_Write(MX_I2C_ADDR, reg, &val, 1);
 }
 
 uchar i2c_readreg(uchar reg)
 {
-    uchar msg[3];
-    msg[0] = MX_I2C_ADDR << 1;
-    msg[1] = reg;
-    msg[2] = 0;
-    errstate |= USI_I2C_Master_Read(msg, 3);
-    return msg[2];
+    uchar msg = 0;
+    errstate |= I2C_Master_Read(MX_I2C_ADDR, reg, &msg, 1);
+    return msg;
 }
 
 void mx_setup()
 {
     i2c_setreg(MX_MODE_CONF, 0x03);
     i2c_setreg(MX_SPO2_CONF, 0x07);
-    i2c_setreg(MX_LED_PULSEAMPLITUDE, 0x0f);
-    i2c_setreg(MX_LED_PULSEAMPLITUDE+1, 0x07);
+    i2c_setreg(MX_LED_PULSEAMPLITUDE, 0x01);
+    i2c_setreg(MX_LED_PULSEAMPLITUDE+1, 0x01);
     i2c_setreg(MX_TEMP_CONF, 0x01);
 }
 
@@ -103,11 +96,13 @@ uchar mx_readfifo()
     report_out[1] = i2c_readreg(MX_FIFO_WPTR);
     report_out[2] = i2c_readreg(MX_FIFO_RPTR);
     report_out[3] = i2c_readreg(MX_FIFO_DATA);
+    /*
     report_out[4] = i2c_readreg(MX_FIFO_DATA);
     report_out[5] = i2c_readreg(MX_FIFO_DATA);
     report_out[6] = i2c_readreg(MX_FIFO_DATA);
     report_out[7] = i2c_readreg(MX_FIFO_DATA);
     report_out[8] = i2c_readreg(MX_FIFO_DATA);
+    */
     report_out[0] = errstate;
     return 1;
     uchar wp, rp, nums;
@@ -117,11 +112,9 @@ uchar mx_readfifo()
     if (rp >= wp) wp += 0x20;
     nums = wp - rp;
     if (nums > NUM_SAMPLES) nums = NUM_SAMPLES;
-    report_out[0] = MX_I2C_ADDR << 1;
-    report_out[1] = MX_FIFO_DATA;
-    errstate |= USI_I2C_Master_Read(report_out, (nums*6)+2);
     report_out[0] = errstate;
     report_out[1] = nums;
+    errstate |= I2C_Master_Read(MX_I2C_ADDR, MX_FIFO_DATA, report_out+2, nums*6);
     PORTB &= ~0x02;
     return nums;
 }
