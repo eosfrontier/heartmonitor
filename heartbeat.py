@@ -93,7 +93,7 @@ matrix = RGBMatrix(options = options)
 pixs = [255,255,255,255,255,0]
 try:
     matrix.Fill(0, 0, 0)
-    heartbeatdelay = 0
+    heartbeatdelay = -100
     cur = 0.4
     tgt = 0.4
     spd = 0.1
@@ -108,7 +108,7 @@ try:
                 tgt = 0.4
             if uid == '9349a524' and heartbeatdelay == 120:
                 print "Start beat"
-                heartbeatdelay = 0
+                heartbeatdelay = -100
                 spd = 0.1
                 tgt = 0.4
         for x in range(0, matrix.width):
@@ -118,8 +118,8 @@ try:
                 matrix.SetPixel(x+2, y, 0, 0, 0)
                 matrix.SetPixel(x+3, y, 0, 0, 0)
                 matrix.SetPixel(x+4, y, 0, 0, 0)
-            mx.update()
             if heartbeatdelay == -100:
+                mx.update()
                 tgt = 0.5 - (mx.ir / 300.0)
                 spd = 1.0
                 if tgt > 1.0:
@@ -165,7 +165,7 @@ try:
                 for y in range(ypos1, ypos2):
                     matrix.SetPixel(x, y, 0, 255, 0)
             matrix.SetPixel(x, ypos1, 0, 200, 0)
-            if heartbeatdelay >= -100 and heartbeatdelay <= 100:
+            if heartbeatdelay > -100 and heartbeatdelay <= 100:
                 heartbeatdelay += 1
 
             try:
@@ -194,7 +194,7 @@ try:
                 leds.show()
             except:
                 pass
-            time.sleep(0.02)
+            time.sleep(0.01)
 except KeyboardInterrupt:
     leds.setPixelColor(0, Color(0, 0, 0))
     leds.setPixelColor(1, Color(0, 0, 0))

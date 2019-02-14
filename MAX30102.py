@@ -1,5 +1,6 @@
 from smbus import SMBus
 import time,numpy
+import hidapi
 
 class MAX30102(object):
     ALPHA = 0.92
@@ -21,7 +22,12 @@ class MAX30102(object):
     TEMP_FRAC = 0x20
     TEMP_CONF = 0x21
 
-    def __init__(self):
+    USB_VENDORID = 0x16c0
+    USB_PRODUCTID = 0x05df
+    USB_MANUFACTURER = 'monsuwe.nl'
+    USB_PRODUCT = 'HeartMonitor'
+
+    def __init__(self, conntype = 'usb'):
         self.pdstate = 0
         self.redcurrent = 0x08
         self.ircurrent = 0x10
@@ -43,18 +49,31 @@ class MAX30102(object):
         self.bufidx = 0
 
         self.pulse = False
+        self.i2c = None
+        self.usb = None
 
-        try:
-            self.i2c = SMBus(1)
-            self.set_reg(self.MODE_CONF, 0x40)
-            time.sleep(0.01)
-            self.set_reg(self.MODE_CONF, 0x03)
-            self.set_reg(self.SPO2_CONF, ((0x00 << 5) | (0x01 << 2) | 0x03))
-            self.set_currents()
-            self.set_reg(self.TEMP_CONF, 0x01)
-        except:
-            print "Heartbeat sensor failed"
-            self.i2c = None
+        if conntype == 'i2c':
+            try:
+                self.i2c = SMBus(1)
+                self.set_reg(self.MODE_CONF, 0x40)
+                time.sleep(0.01)
+                self.set_reg(self.MODE_CONF, 0x03)
+                self.set_reg(self.SPO2_CONF, ((0x00 << 5) | (0x01 << 2) | 0x03))
+                self.set_currents()
+                self.set_reg(self.TEMP_CONF, 0x01)
+            except:
+                print "Heartbeat I2C sensor failed"
+                self.i2c = None
+        if conntype == 'usb':
+            try:
+                for dev in hidapi.enumerate(self.USB_VENDORID, self.USB_PRODUCTID):
+                    print "Checking %s" % (dev.path)
+                    if dev.manufacturer_string == self.USB_MANUFACTURER and dev.product_string == self.USB_PRODUCT:
+                        self.usb = hidapi.Device(path=dev.path)
+            except:
+                self.usb = None
+            if not self.usb:
+                print "Heartbeat USB sensor failed"
 
     def close(self):
         self.set_reg(self.MODE_CONF, 0x80)
@@ -69,23 +88,38 @@ class MAX30102(object):
             self.i2c.write_byte_data(self.I2C_ADDRESS, self.IR_AMPL, self.ircurrent)
 
     def update(self):
-        if not self.i2c:
+        if self.usb:
+            self._update_usb()
+        elif self.i2c:
+            self._update_i2c()
+        else:
             self.ir = 0.0
             self.red = 0.0
-            return
+
+    def _update_usb(self):
+        values = map(ord, self.usb.get_feature_report(chr(0), (6*8)+2))
+        if values:
+            nums = values[1]
+            pulse = False
+            for sn in range(0,nums):
+                self._process(values[sn*6+2:sn*6+8])
+                if self.pulse:
+                    pulse = True
+            self.pulse = pulse
+
+    def _update_i2c(self):
         wptr = self.i2c.read_byte_data(self.I2C_ADDRESS, self.FIFO_WPTR)
         rptr = self.i2c.read_byte_data(self.I2C_ADDRESS, self.FIFO_RPTR)
         if (wptr < rptr):
             wptr += 0x20
         pulse = False
         for r in range(rptr, wptr):
-            self._read()
+            self._process(self.i2c.read_i2c_block_data(self.I2C_ADDRESS, self.FIFO_DATA, 6))
             if self.pulse:
                 pulse = True
         self.pulse = pulse
 
-    def _read(self):
-        buf = self.i2c.read_i2c_block_data(self.I2C_ADDRESS, self.FIFO_DATA, 6)
+    def _process(self, buf):
         self.rawir  = (buf[0]<<16) + (buf[1]<<8) + buf[2]
         self.rawred = (buf[3]<<16) + (buf[4]<<8) + buf[5]
 

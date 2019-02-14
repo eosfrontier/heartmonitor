@@ -1,12 +1,15 @@
 #!/usr/bin/env python
-import time
+import time,sys
 import hidapi
 
-devlist = hidapi.enumerate(0x16c0,0x05df)
+devpath = None
+for d in hidapi.enumerate(0x16c0,0x05df):
+    if d.manufacturer_string == 'monsuwe.nl' and d.product_string == 'HeartMonitor':
+        devpath = d.path
 
-devpath = devlist.next()
-print devpath.path
-dev = hidapi.Device(path=devpath.path)
+if not devpath:
+    raise "No device found"
+dev = hidapi.Device(path=devpath)
 print "%s %s" % (dev.get_manufacturer_string(), dev.get_product_string())
 while True:
     values = map(ord, dev.get_feature_report(chr(0), (6*8)+2))
