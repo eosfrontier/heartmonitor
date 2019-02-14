@@ -2,8 +2,8 @@
 #ifndef USI_I2C_MASTER_H
 #define USI_I2C_MASTER_H
 
-#define PIN_SDA  (1 << 0)
-#define PIN_SCL  (1 << 2)
+#define PIN_SDA  0
+#define PIN_SCL  2
 #define I2C_PORT PORTB
 #define I2C_DDR  DDRB
 #define I2C_PIN  PINB

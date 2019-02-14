@@ -3,16 +3,19 @@
 #include <string.h>
 #include "i2c_master.h"
 
-#define SDA_HI() I2C_DDR &= ~PIN_SDA
-#define SCL_HI() I2C_DDR &= ~PIN_SCL
-#define SDA_LO() I2C_DDR |= PIN_SDA
-#define SCL_LO() I2C_DDR |= PIN_SCL
+#define cbi(p,b) asm volatile ( "cbi %[port], %[bit] \n\t" :: [port] "I" (_SFR_IO_ADDR(p)),[bit] "I" (b) )
+#define sbi(p,b) asm volatile ( "sbi %[port], %[bit] \n\t" :: [port] "I" (_SFR_IO_ADDR(p)),[bit] "I" (b) )
+#define SDA_HI() cbi(I2C_DDR,PIN_SDA)
+#define SCL_HI() cbi(I2C_DDR,PIN_SCL)
+#define SDA_LO() sbi(I2C_DDR,PIN_SDA)
+#define SCL_LO() sbi(I2C_DDR,PIN_SCL)
 
 static void i2c_start_condition()
 {
-    I2C_PORT &= ~(PIN_SDA | PIN_SCL);
     SDA_HI();
     SCL_HI();
+    cbi(I2C_PORT,PIN_SCL);
+    cbi(I2C_PORT,PIN_SDA);
     _delay_us(5);
     SDA_LO();
     _delay_us(5);
@@ -22,8 +25,6 @@ static void i2c_start_condition()
 static void i2c_stop_condition()
 {
     SDA_LO();
-    _delay_us(5);
-    SCL_LO();
     _delay_us(5);
     SCL_HI();
     _delay_us(5);
@@ -43,6 +44,7 @@ static unsigned char i2c_write_byte(unsigned char b)
         _delay_us(3);
         SCL_HI();
         _delay_us(3);
+        while (!(I2C_PIN & (1 << PIN_SCL))) { /* Wait */ }
         SCL_LO();
         _delay_us(3);
     }
@@ -50,10 +52,11 @@ static unsigned char i2c_write_byte(unsigned char b)
     _delay_us(3);
     SCL_HI();
     _delay_us(3);
-    if (I2C_PIN & PIN_SDA) {
+    while (!(I2C_PIN & (1 << PIN_SCL))) { /* Wait */ }
+    _delay_us(3);
+    if (I2C_PIN & (1 << PIN_SDA)) {
         return 1;
     }
-    _delay_us(3);
     SCL_LO();
     return 0;
 }
@@ -67,11 +70,10 @@ static unsigned char i2c_read_byte(unsigned char ack)
     for (i = 0x80; i; i >>= 1) {
         SCL_HI();
         _delay_us(3);
-        if (I2C_PIN & PIN_SDA) {
+        while (!(I2C_PIN & (1 << PIN_SCL))) { /* Wait */ }
+        if (I2C_PIN & (1 << PIN_SDA)) {
             b |= i;
         }
-        _delay_us(3);
-        SCL_LO();
         _delay_us(3);
         SCL_LO();
         _delay_us(3);
@@ -80,7 +82,9 @@ static unsigned char i2c_read_byte(unsigned char ack)
     else SDA_HI();
     _delay_us(3);
     SCL_HI();
-    _delay_us(6);
+    _delay_us(3);
+    while (!(I2C_PIN & (1 << PIN_SCL))) { /* Wait */ }
+    _delay_us(3);
     SCL_LO();
     _delay_us(3);
     SDA_LO();
@@ -106,8 +110,8 @@ unsigned char I2C_Master_Read(unsigned char addr, unsigned char reg, unsigned ch
     if (i2c_write_byte(reg)) return 0x20;
     i2c_start_condition();
     if (i2c_write_byte((addr << 1) | 1)) return 0x40;
-    while (msg_size-- > 1) {
-        *msg++ = i2c_read_byte(msg_size != 0);
+    while (msg_size--) {
+        *msg++ = i2c_read_byte(msg_size);
     }
     i2c_stop_condition();
     return 0;
