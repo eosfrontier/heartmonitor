@@ -10,7 +10,9 @@ LDFLAGS=-mmcu=$(DEVICE)
 
 all: main.hex
 
-%.o: %.c usbconfig.h
+main.o: usbconfig.h
+
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: ../usbdrv/%.c usbconfig.h

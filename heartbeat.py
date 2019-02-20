@@ -97,6 +97,7 @@ try:
     cur = 0.4
     tgt = 0.4
     spd = 0.1
+    beat = False
     while True:
         uid = nfcRdr.poll()
         if uid:
@@ -120,12 +121,17 @@ try:
                 matrix.SetPixel(x+4, y, 0, 0, 0)
             if heartbeatdelay == -100:
                 mx.update()
-                tgt = 0.5 - (mx.ir / 300.0)
+                tgt = 0.5 - (mx.ir / 1200.0)
                 spd = 1.0
                 if tgt > 1.0:
                     tgt = 1.0
                 if tgt < 0.0:
                     tgt = 0.0
+                if tgt > 0.8 and not beat:
+                    beat = True
+                    stream.write(beep)
+                if tgt < 0.4 and beat:
+                    beat = False
             if heartbeatdelay == 10:
                 tgt = random.randint(15,25)/100.0
                 spd = 0.1
