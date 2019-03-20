@@ -3,6 +3,12 @@
 #include <string.h>
 #include "i2c_master.h"
 
+#define PIN_SDA  0
+#define PIN_SCL  1
+#define I2C_PORT PORTB
+#define I2C_DDR  DDRB
+#define I2C_PIN  PINB
+
 #define cbi(p,b) asm volatile ( "cbi %[port], %[bit] \n\t" :: [port] "I" (_SFR_IO_ADDR(p)),[bit] "I" (b) )
 #define sbi(p,b) asm volatile ( "sbi %[port], %[bit] \n\t" :: [port] "I" (_SFR_IO_ADDR(p)),[bit] "I" (b) )
 #define SDA_HI() cbi(I2C_DDR,PIN_SDA)
