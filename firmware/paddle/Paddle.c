@@ -1,4 +1,5 @@
 #include "Paddle.h"
+#include <stdlib.h>
 
 /** LUFA CDC Class driver interface configuration and state information. This structure is
  *  passed to all CDC Class driver functions, so that multiple instances of the same class
@@ -37,7 +38,7 @@ static uint8_t PrevButtonHIDReportBuffer[sizeof(USB_ButtonReport_Data_t)];
  *  passed to all HID Class driver functions, so that multiple instances of the same class
  *  within a device can be differentiated from one another.
  */
-USB_ClassInfo_HID_Device_t Mouse_HID_Interface =
+USB_ClassInfo_HID_Device_t Button_HID_Interface =
 	{
 		.Config =
 			{

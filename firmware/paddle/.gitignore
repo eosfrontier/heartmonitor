@@ -1,0 +1,6 @@
+obj/
+*.eep
+*.elf
+*.lss
+*.map
+*.sym
