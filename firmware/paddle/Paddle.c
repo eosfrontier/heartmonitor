@@ -69,6 +69,7 @@ int main(void)
 
 	DDRD |= 0x02;
 	PORTD &= ~0x02;
+	PORTB |= 0x04;
 
 	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
 
@@ -216,9 +217,9 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
 {
 	USB_ButtonReport_Data_t* ButtonReport = (USB_ButtonReport_Data_t*)ReportData;
 
-	uint8_t ButtonStatus_LCL = (PINB >> 2) & 1;
-
-	ButtonReport->Buttons = ButtonStatus_LCL;
+	if (!(PINB & 0x04)) {
+		ButtonReport->Buttons |= 1;
+	}
 
 	*ReportSize = sizeof(USB_ButtonReport_Data_t);
 	return true;
