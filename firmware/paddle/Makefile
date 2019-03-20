@@ -1,36 +1,31 @@
-DEVICE=attiny85
+MCU=atmega32u4
+ARCH=AVR8
+BOARD=LEONARDO
 F_CPU=16500000
+F_USB=$(F_CPU)
+OPTIMIZATION=s
+TARGET=Paddle
+SRC=$(TARGET).c Descriptors.c $(LUFA_SRC_USB) $(LUFA_SRC_USBCLASS)
+LUFA_PATH=../lufa/LUFA
+CC_FLAGS=-DUSE_LUFA_CONFIG_HEADER
+LD_FLAGS=
 
-USBDRV_OBJECTS=usbdrv.o usbdrvasm.o oddebug.o osccal.o
-OBJECTS=main.o $(USBDRV_OBJECTS)
+AVRDUDE_PROGRAMMER=avr109
+AVRDUDE_PORT=/dev/ttyACM0
+AVRDUDE_FLAGS=-b57600
 
-CC=avr-gcc
-CFLAGS=-mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -Wall -Os -I. -I../usbdrv -DDEBUG_LEVEL=0
-LDFLAGS=-mmcu=$(DEVICE)
+all:
 
-all: main.hex
+DMBS_LUFA_PATH ?= $(LUFA_PATH)/Build/LUFA
+include $(DMBS_LUFA_PATH)/lufa-sources.mk
+include $(DMBS_LUFA_PATH)/lufa-gcc.mk
 
-main.o: usbconfig.h
-
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-%.o: ../usbdrv/%.c usbconfig.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-%.o: ../usbdrv/%.S usbconfig.h
-	$(CC) -x assembler-with-cpp $(CFLAGS) -c $< -o $@
-
-# file targets:
-main.bin: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $^
-
-install: main.hex
-	micronucleus --run $<
-
-%.hex: %.bin
-	avr-objcopy -j .text -j .data -O ihex $< $@
-	avr-size $@
-
-clean:
-	rm -f *.o *.bin *.hex
+DMBS_PATH ?= $(LUFA_PATH)/Build/DMBS/DMBS
+include $(DMBS_PATH)/core.mk
+include $(DMBS_PATH)/cppcheck.mk
+include $(DMBS_PATH)/doxygen.mk
+include $(DMBS_PATH)/dfu.mk
+include $(DMBS_PATH)/gcc.mk
+include $(DMBS_PATH)/hid.mk
+include $(DMBS_PATH)/avrdude.mk
+include $(DMBS_PATH)/atprogram.mk
