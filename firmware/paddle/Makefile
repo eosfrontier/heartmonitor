@@ -29,3 +29,9 @@ include $(DMBS_PATH)/gcc.mk
 include $(DMBS_PATH)/hid.mk
 include $(DMBS_PATH)/avrdude.mk
 include $(DMBS_PATH)/atprogram.mk
+
+install: leonardo-reset avrdude
+
+leonardo-reset:
+	echo reset > $(AVRDUDE_PORT)
+	while [ ! -e $(AVRDUDE_PORT) ] ;do sleep 0.2 ;done
