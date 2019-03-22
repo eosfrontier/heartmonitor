@@ -57,6 +57,19 @@ USB_ClassInfo_HID_Device_t Button_HID_Interface =
 
 static FILE USBSerialStream;
 
+#define FPIN1 0x02 // PD1
+#define FPIN2 0x01 // PD0
+#define FPIN3 0x10 // PD4
+#define FPIN4 0x40 // PC6
+#define FPIN5 0x80 // PD7
+#define FPIN6 0x40 // PE6
+#define FPIN7 0x10 // PB4
+#define FPIN8 0x20 // PB5
+#define FPINSB 0x30 // PB4,PB5
+#define FPINSC 0x40 // PC6
+#define FPINSD 0x93 // PD0,PD1,PD4,PD7
+#define FPINSE 0x40 // PE6
+
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -67,9 +80,17 @@ int main(void)
 
 	SetupHardware();
 
-	DDRD |= 0x02;
-	PORTD &= ~0x02;
-	PORTB |= 0x04;
+	DDRB |= FPINSB;
+	PORTB &= ~FPINSB;
+	DDRC |= FPINSC;
+	PORTC &= ~FPINSC;
+	DDRD |= FPINSD;
+	PORTD &= ~FPINSD;
+	DDRE |= FPINSE;
+	PORTE &= ~FPINSE;
+	
+	DDRB |= 0x40;  // Piezo PB6 (OC1B)
+	PORTB |= 0x04; // Button PB2
 
 	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
 
@@ -79,7 +100,7 @@ int main(void)
 	unsigned int pzfreq = 0;
 	unsigned int pzwait = 1;
 	unsigned int pzdelay = 50;
-	TCCR1A = 0x40;
+	TCCR1A = 0x10;
 	TCCR1B = 0x08;
 
 	for (;;)
@@ -96,13 +117,19 @@ int main(void)
 						}
 					}
 					if (ms <= 0) ms = 200;
-					PORTD |= 0x02;
+					PORTB |= FPINSB;
+					PORTC |= FPINSC;
+					PORTD |= FPINSD;
+					PORTE |= FPINSE;
 					TCCR1B = 0x09;
 					for (int i = 0; i < ms; i++) {
 						OCR1A = 1000 + (rand() & 0x3fff);
 						Delay_MS(1);
 					}
-					PORTD &= ~0x02;
+					PORTB &= ~FPINSB;
+					PORTC &= ~FPINSC;
+					PORTD &= ~FPINSD;
+					PORTE &= ~FPINSE;
 					fputs("Flashed\r\n", &USBSerialStream);
 					TCCR1B = 0x08;
 					pzfreq = 0;
