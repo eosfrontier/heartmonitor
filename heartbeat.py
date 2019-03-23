@@ -41,6 +41,8 @@ options.pixel_mapper_config = "Rotate:180"
 nfcRdr = NFCReader()
 nfcRdr.run()
 
+paddles = Paddles()
+
 matrix = RGBMatrix(options = options)
 
 pixs = [255,255,255,255,255,0]
@@ -50,7 +52,9 @@ try:
     cur = 0.4
     tgt = 0.4
     spd = 0.1
+    zap = False
     beat = False
+    plotpos = 0
     while True:
         uid = nfcRdr.poll()
         if uid:
@@ -65,95 +69,104 @@ try:
                 heartbeatdelay = -100
                 spd = 0.1
                 tgt = 0.4
-        for x in range(0, matrix.width):
-            for y in range(0, matrix.height):
-                matrix.SetPixel(x, y, 0, 0, 0)
-                matrix.SetPixel(x+1, y, 0, 0, 0)
-                matrix.SetPixel(x+2, y, 0, 0, 0)
-                matrix.SetPixel(x+3, y, 0, 0, 0)
-                matrix.SetPixel(x+4, y, 0, 0, 0)
-            if heartbeatdelay == -100:
-                mx.update()
-                tgt = 0.5 - (mx.ir / 1200.0)
-                spd = 1.0
-                if tgt > 1.0:
-                    tgt = 1.0
-                if tgt < 0.0:
-                    tgt = 0.0
-                if tgt > 0.8 and not beat:
-                    beat = True
-                    stream.write(beep)
-                if tgt < 0.4 and beat:
-                    beat = False
-            if heartbeatdelay == 10:
-                tgt = random.randint(15,25)/100.0
-                spd = 0.1
-            elif heartbeatdelay == 15:
-                tgt = random.randint(90,90)/100.0
-                spd = 0.3
+        for y in range(0, matrix.height):
+            matrix.SetPixel(plotpos, y, 0, 0, 0)
+            matrix.SetPixel(plotpos+1, y, 0, 0, 0)
+            matrix.SetPixel(plotpos+2, y, 0, 0, 0)
+            matrix.SetPixel(plotpos+3, y, 0, 0, 0)
+            matrix.SetPixel(plotpos+4, y, 0, 0, 0)
+        if heartbeatdelay == -100:
+            mx.update()
+            tgt = 0.5 - (mx.ir / 1200.0)
+            spd = 1.0
+            if tgt > 1.0:
+                tgt = 1.0
+            if tgt < 0.0:
+                tgt = 0.0
+            if tgt > 0.8 and not beat:
+                beat = True
                 stream.write(beep)
-            elif heartbeatdelay == 18:
-                tgt = random.randint(5,15)/100.0
-                spd = 0.2
-            elif heartbeatdelay == 22:
-                tgt = random.randint(50,60)/100.0
-                spd = 0.1
-            elif heartbeatdelay >= 27 and heartbeatdelay < 35:
-                tgt = random.randint(35,45)/100.0
-                spd = 0.1
-            elif heartbeatdelay ==35:
-                tgt = 0.4
-                spd = 0.1
-            elif heartbeatdelay == 40:
-                heartbeatdelay = random.randint(-5,5)
-            ypos1 = int(matrix.height/2 * (1.0-cur))
+            if tgt < 0.4 and beat:
+                beat = False
+        if heartbeatdelay == 10:
+            tgt = random.randint(15,25)/100.0
+            spd = 0.1
+        elif heartbeatdelay == 15:
+            tgt = random.randint(90,90)/100.0
+            spd = 0.3
+            stream.write(beep)
+        elif heartbeatdelay == 18:
+            tgt = random.randint(5,15)/100.0
+            spd = 0.2
+        elif heartbeatdelay == 22:
+            tgt = random.randint(50,60)/100.0
+            spd = 0.1
+        elif heartbeatdelay >= 27 and heartbeatdelay < 35:
+            tgt = random.randint(35,45)/100.0
+            spd = 0.1
+        elif heartbeatdelay ==35:
+            tgt = 0.4
+            spd = 0.1
+        elif heartbeatdelay == 40:
+            heartbeatdelay = random.randint(-5,5)
+        ypos1 = int(matrix.height/2 * (1.0-cur))
+        if cur < tgt:
+            cur = cur + spd
+            if cur > tgt:
+                cur = tgt
+                spd = 0.0
+            ypos2 = int(matrix.height/2 * (1.0-cur))
+            for y in range(ypos2, ypos1):
+                matrix.SetPixel(plotpos, y, 0, 255, 0)
+        elif cur > tgt:
+            cur = cur - spd
             if cur < tgt:
-                cur = cur + spd
-                if cur > tgt:
-                    cur = tgt
-                    spd = 0.0
-                ypos2 = int(matrix.height/2 * (1.0-cur))
-                for y in range(ypos2, ypos1):
-                    matrix.SetPixel(x, y, 0, 255, 0)
-            elif cur > tgt:
-                cur = cur - spd
-                if cur < tgt:
-                    cur = tgt
-                    spd = 0.0
-                ypos2 = int(matrix.height/2 * (1.0-cur))
-                for y in range(ypos1, ypos2):
-                    matrix.SetPixel(x, y, 0, 255, 0)
-            matrix.SetPixel(x, ypos1, 0, 200, 0)
-            if heartbeatdelay > -100 and heartbeatdelay <= 100:
-                heartbeatdelay += 1
+                cur = tgt
+                spd = 0.0
+            ypos2 = int(matrix.height/2 * (1.0-cur))
+            for y in range(ypos1, ypos2):
+                matrix.SetPixel(plotpos, y, 0, 255, 0)
+        matrix.SetPixel(plotpos, ypos1, 0, 200, 0)
+        if heartbeatdelay > -100 and heartbeatdelay <= 100:
+            heartbeatdelay += 1
 
-            try:
-                buttons = i2c.read_word_data(mcp, mcp_gpio)
-                for x in range(0,16):
-                    if ((buttons >> x) & 1) == 0:
-                        if x >= 0 and x <= 4:
-                            pixs[x] = 0
-                        matrix.SetPixel(x*4+2, 30, 0, 0, 255)
-                        matrix.SetPixel(x*4+3, 30, 0, 64, 64)
-                        matrix.SetPixel(x*4+1, 30, 0, 64, 64)
-                        matrix.SetPixel(x*4+2, 31, 0, 64, 64)
-                        matrix.SetPixel(x*4+2, 29, 0, 64, 64)
-                    else:
-                        if x >= 0 and x <= 4:
-                            pixs[x] += 2
-                            if pixs[x] >= 255:
-                                pixs[x] = 255
-                        matrix.SetPixel(x*4+2, 30, 0, 0, 0)
-                        matrix.SetPixel(x*4+3, 30, 0, 0, 0)
-                        matrix.SetPixel(x*4+1, 30, 0, 0, 0)
-                        matrix.SetPixel(x*4+2, 31, 0, 0, 0)
-                        matrix.SetPixel(x*4+2, 29, 0, 0, 0)
-                leds.setPixelColor(0, Color(pixs[2], pixs[1], pixs[0]))
-                leds.setPixelColor(1, Color(pixs[5], pixs[4], pixs[3]))
-                leds.show()
-            except:
-                pass
-            time.sleep(0.01)
+        try:
+            buttons = i2c.read_word_data(mcp, mcp_gpio)
+            for x in range(0,16):
+                if ((buttons >> x) & 1) == 0:
+                    if x >= 0 and x <= 4:
+                        pixs[x] = 0
+                    matrix.SetPixel(x*4+2, 30, 0, 0, 255)
+                    matrix.SetPixel(x*4+3, 30, 0, 64, 64)
+                    matrix.SetPixel(x*4+1, 30, 0, 64, 64)
+                    matrix.SetPixel(x*4+2, 31, 0, 64, 64)
+                    matrix.SetPixel(x*4+2, 29, 0, 64, 64)
+                else:
+                    if x >= 0 and x <= 4:
+                        pixs[x] += 2
+                        if pixs[x] >= 255:
+                            pixs[x] = 255
+                    matrix.SetPixel(x*4+2, 30, 0, 0, 0)
+                    matrix.SetPixel(x*4+3, 30, 0, 0, 0)
+                    matrix.SetPixel(x*4+1, 30, 0, 0, 0)
+                    matrix.SetPixel(x*4+2, 31, 0, 0, 0)
+                    matrix.SetPixel(x*4+2, 29, 0, 0, 0)
+            leds.setPixelColor(0, Color(pixs[2], pixs[1], pixs[0]))
+            leds.setPixelColor(1, Color(pixs[5], pixs[4], pixs[3]))
+            leds.show()
+        except:
+            pass
+        try:
+            paddles.read()
+            buttons = paddles.buttons.values()
+            if len(paddles.buttons) == 2 and paddles.buttons[0] and paddles.buttons[1]:
+                zap = True
+                paddles.send('sound')
+            else if zap:
+                zap = False
+                paddles.send('flash')
+        time.sleep(0.01)
+        plotpos = (plotpos + 1) % matrix.width
 except KeyboardInterrupt:
     leds.setPixelColor(0, Color(0, 0, 0))
     leds.setPixelColor(1, Color(0, 0, 0))
