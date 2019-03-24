@@ -70,6 +70,60 @@ static FILE USBSerialStream;
 #define FPINSD 0x93 // PD0,PD1,PD4,PD7
 #define FPINSE 0x40 // PE6
 
+#define LED_BIT             1
+#define LED_PORT            PORTB
+#define NS_PER_CYCLE (1000000000 / F_CPU)
+#define NS_TO_CYCLES(n) ((n)/NS_PER_CYCLE)
+#define DELAY_CYCLES(n,s) ((((NS_TO_CYCLES(n)-s)>0) ? (NS_TO_CYCLES(n)-s) : (0)))
+
+void send_bit(unsigned char) __attribute__ ((optimize(0)));
+
+void send_bit(unsigned char bitval)
+{
+    if (bitval) {
+        asm volatile (
+                "sbi %[port], %[bit] \n\t"
+                ".rept %[onCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                "cbi %[port], %[bit] \n\t"
+                ".rept %[offCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                ::
+                [port]      "I" (_SFR_IO_ADDR(LED_PORT)),
+                [bit]       "I" (LED_BIT),
+                [onCycles]  "I" (DELAY_CYCLES(900,2)),
+                [offCycles] "I" (DELAY_CYCLES(600,9))
+                );
+    } else {
+        asm volatile (
+                "sbi %[port], %[bit] \n\t"
+                ".rept %[onCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                "cbi %[port], %[bit] \n\t"
+                ".rept %[offCycles] \n\t"
+                "nop \n\t"
+                ".endr \n\t"
+                ::
+                [port]      "I" (_SFR_IO_ADDR(LED_PORT)),
+                [bit]       "I" (LED_BIT),
+                [onCycles]  "I" (DELAY_CYCLES(400,2)),
+                [offCycles] "I" (DELAY_CYCLES(900,10))
+                );
+    }
+}
+
+static void send_pixel(int r, int g, int b)
+{
+    cli();
+    for (unsigned char x = 0x80; x > 0; x >>= 1) { send_bit(r & x); }
+    for (unsigned char x = 0x80; x > 0; x >>= 1) { send_bit(g & x); }
+    for (unsigned char x = 0x80; x > 0; x >>= 1) { send_bit(b & x); }
+    sei();
+}
+
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -145,6 +199,24 @@ int main(void)
 					TCCR1B = 0x09;
 					pzfreq = 0xFFFF;
 					fputs("Sounding\r\n", &USBSerialStream);
+				} else if (inptr >= 5 && memcmp(inbuf, "color", 5) == 0) {
+					int cols[3] = { 0, 0, 0 };
+					int cp = 0;
+					for (int rp = 5; rp < inptr; rp++) {
+						if (inbuf[rp] >= '0' && inbuf[rp] <= '9') {
+							cols[cp] = cols[cp] * 10 + (inbuf[rp] - '0');
+						}
+						if (inbuf[rp] == ',') {
+							cp++;
+							if (cp >= 3) break;
+						}
+					}
+					for (cp = 0; cp < 3; cp++) {
+						if (cols[cp] < 0) cols[cp] = 0;
+						if (cols[cp] > 255) cols[cp] = 255;
+					}
+					send_pixel(cols[0], cols[1], cols[2]);
+					fprintf(&USBSerialStream, "Color(%d,%d,%d)\r\n", cols[0], cols[1], cols[2]);
 				} else if (inptr >= 5 && memcmp(inbuf, "reset", 5) == 0) {
 					*(uint16_t *)0x0800 = 0x7777;
 					wdt_enable(WDTO_120MS);
