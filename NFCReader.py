@@ -1,4 +1,4 @@
-import nfc
+import nfc,ctypes
 
 class NFCReader(object):
     MC_AUTH_A = 0x60

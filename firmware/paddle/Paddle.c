@@ -115,12 +115,25 @@ void send_bit(unsigned char bitval)
     }
 }
 
-static void send_pixel(int r, int g, int b)
+static void send_pixels(int cols[6])
 {
     cli();
-    for (unsigned char x = 0x80; x > 0; x >>= 1) { send_bit(r & x); }
-    for (unsigned char x = 0x80; x > 0; x >>= 1) { send_bit(g & x); }
-    for (unsigned char x = 0x80; x > 0; x >>= 1) { send_bit(b & x); }
+    for (int i = 0; i < 6; i++) {
+	    for (unsigned char x = 0x80; x > 0; x >>= 1) {
+		    send_bit(cols[i] & x);
+	    }
+    }
+    sei();
+}
+
+static void clear_pixels(int cols[6])
+{
+    cli();
+    for (int i = 0; i < 6; i++) {
+	    for (unsigned char x = 0x80; x > 0; x >>= 1) {
+		    send_bit(0);
+	    }
+    }
     sei();
 }
 
@@ -144,7 +157,10 @@ int main(void)
 	PORTE &= ~FPINSE;
 	
 	DDRB |= 0x40;  // Piezo PB6 (OC1B)
+	DDRB |= (1 << LED_BIT);
 	PORTB |= 0x04; // Button PB2
+
+	clear_pixels();
 
 	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
 
@@ -187,6 +203,10 @@ int main(void)
 					fputs("Flashed\r\n", &USBSerialStream);
 					TCCR1B = 0x08;
 					pzfreq = 0;
+				} else if (inptr >= 8 && memcmp(inbuf, "soundoff", 8) == 0) {
+					TCCR1B = 0x08;
+					pzfreq = 0;
+					fputs("Sound off\r\n", &USBSerialStream);
 				} else if (inptr >= 5 && memcmp(inbuf, "sound", 5) == 0) {
 					int ms = 0;
 					for (int rp = 5; rp < inptr; rp++) {
@@ -194,13 +214,13 @@ int main(void)
 							ms = ms * 10 + (inbuf[rp] - '0');
 						}
 					}
-					if (ms <= 0) ms = 30;
+					if (ms <= 0) ms = 10;
 					pzdelay = ms;
 					TCCR1B = 0x09;
 					pzfreq = 0xFFFF;
 					fputs("Sounding\r\n", &USBSerialStream);
 				} else if (inptr >= 5 && memcmp(inbuf, "color", 5) == 0) {
-					int cols[3] = { 0, 0, 0 };
+					int cols[6] = { 0, 0, 0, 0, 0, 0 };
 					int cp = 0;
 					for (int rp = 5; rp < inptr; rp++) {
 						if (inbuf[rp] >= '0' && inbuf[rp] <= '9') {
@@ -208,14 +228,19 @@ int main(void)
 						}
 						if (inbuf[rp] == ',') {
 							cp++;
-							if (cp >= 3) break;
+							if (cp >= 6) break;
 						}
 					}
-					for (cp = 0; cp < 3; cp++) {
+					if (cp < 3) {
+						cols[3] = cols[0];
+						cols[4] = cols[1];
+						cols[5] = cols[2];
+					}
+					for (cp = 0; cp < 6; cp++) {
 						if (cols[cp] < 0) cols[cp] = 0;
 						if (cols[cp] > 255) cols[cp] = 255;
 					}
-					send_pixel(cols[0], cols[1], cols[2]);
+					send_pixels(cols);
 					fprintf(&USBSerialStream, "Color(%d,%d,%d)\r\n", cols[0], cols[1], cols[2]);
 				} else if (inptr >= 5 && memcmp(inbuf, "reset", 5) == 0) {
 					*(uint16_t *)0x0800 = 0x7777;
@@ -236,7 +261,7 @@ int main(void)
 			if (!pzwait--) {
 				pzwait = pzdelay;
 				pzfreq--;
-				OCR1A = (pzfreq >> 3);
+				OCR1A = (pzfreq >> 4);
 			}
 		}
 

@@ -1,7 +1,4 @@
-from glob import glob
-from evdev import InputDevice
-from select import select
-import serial
+import serial,evdev,glob,select
 
 class Paddles(object):
     buttons = {}
@@ -10,41 +7,45 @@ class Paddles(object):
         self._rescan = 0
         self._fdlist = {}
         self._serlist = {}
+        self._reopen()
 
     def _reopen(self):
-        for jsdev in glob('/dev/input/js*'):
-            if not jsdev in _devlist:
+        for jsdev in glob.glob('/dev/input/event*'):
+            if not jsdev in self._devlist:
+                print "Opening paddle button %s" % jsdev
+                js = evdev.InputDevice(jsdev)
+                self._devlist[jsdev] = js
+                self._fdlist[js.fd] = jsdev
+                self.buttons[jsdev] = False
+                print "Got paddle button %s" % (self._devlist[jsdev])
+        for serdev in glob.glob('/dev/ttyACM*'):
+            if not serdev in self._serlist:
                 try:
-                    _devlist[jsdev] = InputDevice(jsdev)
-                    _fdlist[js.fd] = jsdev
-                    buttons[jsdev] = False
+                    print "Opening paddle cmd %s" % serdev
+                    self._serlist[serdev] = serial.Serial(serdev)
                 except:
-                    pass
-        for serdev in glob('/dev/input/ttyACM*'):
-            if not serdev in _serlist:
-                try:
-                    _serlist[serdev] = serial.Serial(serdev)
-                except:
+                    print "Failed to open!"
                     pass
 
     def read(self):
         try:
-            r, w, x = select(_devlist.values(), [], [], 0)
+            r, w, x = select.select(self._fdlist, [], [], 0)
             for jsfd in r:
-                jsdev = _fdlist[jsfd]
-                for ev in _devlist[jsdev].read():
-                    if ev.type == ecodes.EV_KEY:
+                jsdev = self._fdlist[jsfd]
+                for ev in self._devlist[jsdev].read():
+                    if ev.type == evdev.ecodes.EV_KEY:
                         if ev.value == 1:
-                            buttons[jsdev] = True
+                            self.buttons[jsdev] = True
                         else:
-                            buttons[jsdev] = False
+                            self.buttons[jsdev] = False
         except:
             pass
         
-    def send(self, line):
+    def command(self, line):
         try:
-            for serdev in _serlist.values():
-                serdev.write(line)
+            for serdev in self._serlist.values():
+                serdev.write(line+"\r\n")
+                serdev.reset_input_buffer()
         except:
             pass
             

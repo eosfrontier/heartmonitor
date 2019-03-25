@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-import time, sys, os, random, smbus, ctypes
+import time, sys, os, random, smbus
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 import pyaudio, wave
 from neopixel import *
 import MAX30102
 import NFCReader
+import Paddles
 
 leds = Adafruit_NeoPixel(2, 13, channel=1)
 mx = MAX30102.MAX30102()
@@ -38,37 +39,38 @@ options.cols = 64
 options.disable_hardware_pulsing = True
 options.pixel_mapper_config = "Rotate:180"
 
-nfcRdr = NFCReader()
+nfcRdr = NFCReader.NFCReader()
 nfcRdr.run()
 
-paddles = Paddles()
+paddles = Paddles.Paddles()
 
 matrix = RGBMatrix(options = options)
 
 pixs = [255,255,255,255,255,0]
 try:
     matrix.Fill(0, 0, 0)
-    heartbeatdelay = -100
+    heartbeatdelay = 0
     cur = 0.4
     tgt = 0.4
     spd = 0.1
-    zap = False
+    zapcnt = 0
     beat = False
     plotpos = 0
     while True:
-        uid = nfcRdr.poll()
-        if uid:
-            print "Got NFC card "+uid
-            if uid == 'e4c3b6c3' and heartbeatdelay != 120:
-                print "Stop beat"
-                heartbeatdelay = 120
-                spd = 0.1
-                tgt = 0.4
-            if uid == '9349a524' and heartbeatdelay == 120:
-                print "Start beat"
-                heartbeatdelay = -100
-                spd = 0.1
-                tgt = 0.4
+        if False:
+            uid = nfcRdr.poll()
+            if uid:
+                print "Got NFC card "+uid
+                if uid == 'e4c3b6c3' and heartbeatdelay != 120:
+                    print "Stop beat"
+                    heartbeatdelay = 120
+                    spd = 0.1
+                    tgt = 0.4
+                if uid == '9349a524' and heartbeatdelay == 120:
+                    print "Start beat"
+                    heartbeatdelay = -100
+                    spd = 0.1
+                    tgt = 0.4
         for y in range(0, matrix.height):
             matrix.SetPixel(plotpos, y, 0, 0, 0)
             matrix.SetPixel(plotpos+1, y, 0, 0, 0)
@@ -159,12 +161,24 @@ try:
         try:
             paddles.read()
             buttons = paddles.buttons.values()
-            if len(paddles.buttons) == 2 and paddles.buttons[0] and paddles.buttons[1]:
-                zap = True
-                paddles.send('sound')
-            else if zap:
-                zap = False
-                paddles.send('flash')
+            if len(buttons) == 1 and buttons[0]:
+                if zapcnt == 0:
+                    paddles.command("color 255,0,0")
+                    paddles.command("sound")
+                zapcnt += 1
+                if zapcnt > 100:
+                    paddles.command("color 0,255,0")
+            elif zapcnt > 100:
+                zapcnt = 0
+                paddles.command("color 0,0,255")
+                paddles.command("flash")
+                paddles.command("color 0,0,0")
+            elif zapcnt > 0:
+                zapcnt = 0
+                paddles.command("color 0,0,0")
+                paddles.command("soundoff")
+        except:
+            pass
         time.sleep(0.01)
         plotpos = (plotpos + 1) % matrix.width
 except KeyboardInterrupt:
