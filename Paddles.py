@@ -1,6 +1,7 @@
 from glob import glob
 from evdev import InputDevice
 from select import select
+import serial
 
 class Paddles(object):
     buttons = {}
@@ -8,6 +9,7 @@ class Paddles(object):
         self._devlist = {}
         self._rescan = 0
         self._fdlist = {}
+        self._serlist = {}
 
     def _reopen(self):
         for jsdev in glob('/dev/input/js*'):
@@ -16,6 +18,12 @@ class Paddles(object):
                     _devlist[jsdev] = InputDevice(jsdev)
                     _fdlist[js.fd] = jsdev
                     buttons[jsdev] = False
+                except:
+                    pass
+        for serdev in glob('/dev/input/ttyACM*'):
+            if not serdev in _serlist:
+                try:
+                    _serlist[serdev] = serial.Serial(serdev)
                 except:
                     pass
 
@@ -32,3 +40,11 @@ class Paddles(object):
                             buttons[jsdev] = False
         except:
             pass
+        
+    def send(self, line):
+        try:
+            for serdev in _serlist.values():
+                serdev.write(line)
+        except:
+            pass
+            
