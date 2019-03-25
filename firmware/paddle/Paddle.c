@@ -126,7 +126,7 @@ static void send_pixels(int cols[6])
     sei();
 }
 
-static void clear_pixels(int cols[6])
+static void clear_pixels(void)
 {
     cli();
     for (int i = 0; i < 6; i++) {
