@@ -39,8 +39,8 @@ options.cols = 64
 options.disable_hardware_pulsing = True
 options.pixel_mapper_config = "Rotate:180"
 
-nfcRdr = NFCReader.NFCReader()
-nfcRdr.run()
+#nfcRdr = NFCReader.NFCReader()
+#nfcRdr.run()
 
 paddles = Paddles.Paddles()
 
@@ -57,20 +57,21 @@ try:
     beat = False
     plotpos = 0
     while True:
-        if False:
-            uid = nfcRdr.poll()
-            if uid:
-                print "Got NFC card "+uid
-                if uid == 'e4c3b6c3' and heartbeatdelay != 120:
-                    print "Stop beat"
-                    heartbeatdelay = 120
-                    spd = 0.1
-                    tgt = 0.4
-                if uid == '9349a524' and heartbeatdelay == 120:
-                    print "Start beat"
-                    heartbeatdelay = -100
-                    spd = 0.1
-                    tgt = 0.4
+        """
+        uid = nfcRdr.poll()
+        if uid:
+            print "Got NFC card "+uid
+            if uid == 'e4c3b6c3' and heartbeatdelay != 120:
+                print "Stop beat"
+                heartbeatdelay = 120
+                spd = 0.1
+                tgt = 0.4
+            if uid == '9349a524' and heartbeatdelay == 120:
+                print "Start beat"
+                heartbeatdelay = -100
+                spd = 0.1
+                tgt = 0.4
+        """
         for y in range(0, matrix.height):
             matrix.SetPixel(plotpos, y, 0, 0, 0)
             matrix.SetPixel(plotpos+1, y, 0, 0, 0)
@@ -161,16 +162,16 @@ try:
         try:
             paddles.read()
             buttons = paddles.buttons.values()
-            if len(buttons) == 1 and buttons[0]:
+            if len(buttons) == 2 and buttons[0] and buttons[1]:
                 if zapcnt == 0:
-                    paddles.command("color 255,0,0")
+                    paddles.command("color 100,0,0")
                     paddles.command("sound")
                 zapcnt += 1
                 if zapcnt > 100:
-                    paddles.command("color 0,255,0")
+                    paddles.command("color 0,100,0")
             elif zapcnt > 100:
                 zapcnt = 0
-                paddles.command("color 0,0,255")
+                paddles.command("color 0,0,100")
                 paddles.command("flash")
                 paddles.command("color 0,0,0")
             elif zapcnt > 0:
