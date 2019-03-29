@@ -5,3 +5,8 @@ testMAX: testMAX.c MAX30102.c
 
 test: testMAX
 	./testMAX
+
+install:
+	sudo cp heartbeat.service /etc/systemd/system/heartbeat.service
+	sudo systemctl enable heartbeat.service
+	sudo systemctl start heartbeat.service
