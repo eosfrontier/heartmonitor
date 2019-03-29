@@ -196,34 +196,31 @@ try:
                 show_ipaddress(matrix, ipfont)
         except:
             pass
-        try:
-            paddles.read()
-            buttons = paddles.buttons.values()
-            if len(buttons) == 2 and buttons[0] and buttons[1]:
-                if zapcnt == 0:
-                    paddles.command("color 100,0,0")
-                    paddles.command("sound")
-                zapcnt += 1
-                if zapcnt > 100:
-                    paddles.command("color 0,100,0")
-            elif zapcnt > 100:
-                zapcnt = 0
-                paddles.command("color 0,0,100")
-                paddles.command("flash")
-                paddles.command("color 0,0,0")
-                if heartmode != 0 and heartbeatdelay == 120:
-                    zaptry += 1
-                    if zapcnt < (100 + (zaptry * 10)):
-                        print "It worked! Start beat!"
-                        heartbeatdelay = -99
-                        spd = 0.1
-                        tgt = 0.4
-            elif zapcnt > 0:
-                zapcnt = 0
-                paddles.command("color 0,0,0")
-                paddles.command("soundoff")
-        except:
-            pass
+        paddles.read()
+        buttons = paddles.buttons.values()
+        if len(buttons) == 2 and buttons[0] and buttons[1]:
+            if zapcnt == 0:
+                paddles.command("color 100,0,0")
+                paddles.command("sound")
+            zapcnt += 1
+            if zapcnt > 100:
+                paddles.command("color 0,100,0")
+        elif zapcnt > 100:
+            zapcnt = 0
+            paddles.command("color 0,0,100")
+            paddles.command("flash")
+            paddles.command("color 0,0,0")
+            if heartmode != 0 and heartbeatdelay == 120:
+                zaptry += 1
+                if zapcnt < (100 + (zaptry * 10)):
+                    print "It worked! Start beat!"
+                    heartbeatdelay = -99
+                    spd = 0.1
+                    tgt = 0.4
+        elif zapcnt > 0:
+            zapcnt = 0
+            paddles.command("color 0,0,0")
+            paddles.command("soundoff")
         time.sleep(0.02)
         if heartmode != 0:
             plotpos = (plotpos + 1) % matrix.width
