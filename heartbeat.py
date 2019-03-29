@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import time, sys, os, random, smbus
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
+import time, sys, os, random, smbus, socket
+from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 import pyaudio, wave
 from neopixel import *
 import MAX30102
@@ -45,10 +45,22 @@ options.pixel_mapper_config = "Rotate:180"
 paddles = Paddles.Paddles()
 
 matrix = RGBMatrix(options = options)
+acmefont = graphics.Font()
+acmefont.LoadFont('/home/pi/src/rpi-rgb-led-matrix/fonts/6x13.bdf')
+ipfont = graphics.Font()
+ipfont.LoadFont('/home/pi/src/rpi-rgb-led-matrix/fonts/5x8.bdf')
+
+def show_ipaddress(matrix, font):
+    ipaddress = ((([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")] or [[(s.connect(("8.8.8.8", 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) + ["no IP found"])[0])
+    ypos = 64 - 5*len(ipaddress)
+    graphics.DrawText(matrix, font, ypos, 30, graphics.Color(255, 0, 255), ipaddress)
 
 pixs = [255,255,255,255,255,0]
 try:
     matrix.Fill(0, 0, 0)
+    print "Starting process"
+    graphics.DrawText(matrix, acmefont, 2, 20, graphics.Color(255, 255, 0), 'ACME')
+    graphics.DrawText(matrix, acmefont, 32, 20, graphics.Color(0, 255, 255), 'Cura')
     heartbeatdelay = 0
     heartmode = 0
     cur = 0.4
@@ -74,12 +86,13 @@ try:
                 spd = 0.1
                 tgt = 0.4
         """
-        for y in range(0, matrix.height):
-            matrix.SetPixel(plotpos, y, 0, 0, 0)
-            matrix.SetPixel(plotpos+1, y, 0, 0, 0)
-            matrix.SetPixel(plotpos+2, y, 0, 0, 0)
-            matrix.SetPixel(plotpos+3, y, 0, 0, 0)
-            matrix.SetPixel(plotpos+4, y, 0, 0, 0)
+        if heartmode != 0:
+            for y in range(0, matrix.height):
+                #matrix.SetPixel(plotpos, y, 0, 0, 0)
+                #matrix.SetPixel(plotpos+1, y, 0, 0, 0)
+                #matrix.SetPixel(plotpos+2, y, 0, 0, 0)
+                matrix.SetPixel((plotpos+3)%matrix.width, y, 0, 0, 0)
+                matrix.SetPixel((plotpos+4)%matrix.width, y, 0, 0, 0)
         if heartmode == 2:
             mx.update()
             tgt = 0.5 - (mx.ir / 1200.0)
@@ -158,10 +171,10 @@ try:
                     matrix.SetPixel(x*4+1, 30, 0, 0, 0)
                     matrix.SetPixel(x*4+2, 31, 0, 0, 0)
                     matrix.SetPixel(x*4+2, 29, 0, 0, 0)
+            """
             leds.setPixelColor(0, Color(pixs[2], pixs[1], pixs[0]))
             leds.setPixelColor(1, Color(pixs[5], pixs[4], pixs[3]))
             leds.show()
-            """
             if   (not buttons & 0b0000000000001000) and heartmode == 0:
                 print "Starting heart monitor"
                 heartmode = 1
@@ -179,6 +192,8 @@ try:
                 heartbeatdelay = -99
                 spd = 0.1
                 tgt = 0.4
+            if   (not buttons & 0b0000000000000010):
+                show_ipaddress(matrix, ipfont)
         except:
             pass
         try:
@@ -196,12 +211,13 @@ try:
                 paddles.command("color 0,0,100")
                 paddles.command("flash")
                 paddles.command("color 0,0,0")
-                zaptry += 1
-                if zapcnt < (100 + (zaptry * 10)):
-                    print "It worked! Start beat!"
-                    heartbeatdelay = -99
-                    spd = 0.1
-                    tgt = 0.4
+                if heartmode != 0 and heartbeatdelay == 120:
+                    zaptry += 1
+                    if zapcnt < (100 + (zaptry * 10)):
+                        print "It worked! Start beat!"
+                        heartbeatdelay = -99
+                        spd = 0.1
+                        tgt = 0.4
             elif zapcnt > 0:
                 zapcnt = 0
                 paddles.command("color 0,0,0")
@@ -209,7 +225,10 @@ try:
         except:
             pass
         time.sleep(0.02)
-        plotpos = (plotpos + 1) % matrix.width
+        if heartmode != 0:
+            plotpos = (plotpos + 1) % matrix.width
+        else:
+            plotpos = 0
 except KeyboardInterrupt:
     leds.setPixelColor(0, Color(0, 0, 0))
     leds.setPixelColor(1, Color(0, 0, 0))
