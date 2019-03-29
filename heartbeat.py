@@ -189,7 +189,7 @@ try:
                 zaptry = 0
             elif (not buttons & 0b0000000000100000) and heartbeatdelay == 120:
                 print "Start beat"
-                heartbeatdelay = -99
+                heartbeatdelay = -10
                 spd = 0.1
                 tgt = 0.4
             if   (not buttons & 0b0000000000000010):
@@ -206,7 +206,6 @@ try:
             if zapcnt > 100:
                 paddles.command("color 0,100,0")
         elif zapcnt > 100:
-            zapcnt = 0
             paddles.command("color 0,0,100")
             paddles.command("flash")
             paddles.command("color 0,0,0")
@@ -217,6 +216,7 @@ try:
                     heartbeatdelay = -99
                     spd = 0.1
                     tgt = 0.4
+            zapcnt = 0
         elif zapcnt > 0:
             zapcnt = 0
             paddles.command("color 0,0,0")
