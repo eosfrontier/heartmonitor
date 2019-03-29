@@ -227,8 +227,13 @@ try:
         else:
             plotpos = 0
 except KeyboardInterrupt:
+    print "Stopping"
+    pass
+finally:
     leds.setPixelColor(0, Color(0, 0, 0))
     leds.setPixelColor(1, Color(0, 0, 0))
     leds.show()
+    paddles.command("color 0,0,0")
+    paddles.command("soundoff")
     #mx.close()
     sys.exit(0)
