@@ -211,7 +211,7 @@ try:
             paddles.command("color 0,0,0")
             if heartmode != 0 and heartbeatdelay == 120:
                 zaptry += 1
-                if zapcnt < (100 + (zaptry * 10)):
+                if zapcnt < (80 + (zaptry * 30)):
                     print "It worked! Start beat!"
                     heartbeatdelay = -99
                     spd = 0.1
