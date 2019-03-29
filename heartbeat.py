@@ -56,6 +56,9 @@ def show_ipaddress(matrix, font):
     graphics.DrawText(matrix, font, ypos, 30, graphics.Color(255, 0, 255), ipaddress)
 
 pixs = [255,255,255,255,255,0]
+leds.setPixelColor(0, Color(pixs[2], pixs[1], pixs[0]))
+leds.setPixelColor(1, Color(pixs[5], pixs[4], pixs[3]))
+leds.show()
 try:
     matrix.Fill(0, 0, 0)
     print "Starting process"
@@ -172,9 +175,6 @@ try:
                     matrix.SetPixel(x*4+2, 31, 0, 0, 0)
                     matrix.SetPixel(x*4+2, 29, 0, 0, 0)
             """
-            leds.setPixelColor(0, Color(pixs[2], pixs[1], pixs[0]))
-            leds.setPixelColor(1, Color(pixs[5], pixs[4], pixs[3]))
-            leds.show()
             if   (not buttons & 0b0000000000001000) and heartmode == 0:
                 print "Starting heart monitor"
                 heartmode = 1
