@@ -50,10 +50,12 @@ pixs = [255,255,255,255,255,0]
 try:
     matrix.Fill(0, 0, 0)
     heartbeatdelay = 0
+    heartmode = 0
     cur = 0.4
     tgt = 0.4
     spd = 0.1
     zapcnt = 0
+    zaptry = 0
     beat = False
     plotpos = 0
     while True:
@@ -78,7 +80,7 @@ try:
             matrix.SetPixel(plotpos+2, y, 0, 0, 0)
             matrix.SetPixel(plotpos+3, y, 0, 0, 0)
             matrix.SetPixel(plotpos+4, y, 0, 0, 0)
-        if heartbeatdelay == -100:
+        if heartmode == 2:
             mx.update()
             tgt = 0.5 - (mx.ir / 1200.0)
             spd = 1.0
@@ -91,50 +93,52 @@ try:
                 stream.write(beep)
             if tgt < 0.4 and beat:
                 beat = False
-        if heartbeatdelay == 10:
-            tgt = random.randint(15,25)/100.0
-            spd = 0.1
-        elif heartbeatdelay == 15:
-            tgt = random.randint(90,90)/100.0
-            spd = 0.3
-            stream.write(beep)
-        elif heartbeatdelay == 18:
-            tgt = random.randint(5,15)/100.0
-            spd = 0.2
-        elif heartbeatdelay == 22:
-            tgt = random.randint(50,60)/100.0
-            spd = 0.1
-        elif heartbeatdelay >= 27 and heartbeatdelay < 35:
-            tgt = random.randint(35,45)/100.0
-            spd = 0.1
-        elif heartbeatdelay ==35:
-            tgt = 0.4
-            spd = 0.1
-        elif heartbeatdelay == 40:
-            heartbeatdelay = random.randint(-5,5)
-        ypos1 = int(matrix.height/2 * (1.0-cur))
-        if cur < tgt:
-            cur = cur + spd
-            if cur > tgt:
-                cur = tgt
-                spd = 0.0
-            ypos2 = int(matrix.height/2 * (1.0-cur))
-            for y in range(ypos2, ypos1):
-                matrix.SetPixel(plotpos, y, 0, 255, 0)
-        elif cur > tgt:
-            cur = cur - spd
+        elif heartmode == 1:
+            if heartbeatdelay == 10:
+                tgt = random.randint(15,25)/100.0
+                spd = 0.1
+            elif heartbeatdelay == 15:
+                tgt = random.randint(90,90)/100.0
+                spd = 0.3
+                stream.write(beep)
+            elif heartbeatdelay == 18:
+                tgt = random.randint(5,15)/100.0
+                spd = 0.2
+            elif heartbeatdelay == 22:
+                tgt = random.randint(50,60)/100.0
+                spd = 0.1
+            elif heartbeatdelay >= 27 and heartbeatdelay < 35:
+                tgt = random.randint(35,45)/100.0
+                spd = 0.1
+            elif heartbeatdelay ==35:
+                tgt = 0.4
+                spd = 0.1
+            elif heartbeatdelay == 40:
+                heartbeatdelay = random.randint(-5,5)
+            ypos1 = int(matrix.height/2 * (1.0-cur))
             if cur < tgt:
-                cur = tgt
-                spd = 0.0
-            ypos2 = int(matrix.height/2 * (1.0-cur))
-            for y in range(ypos1, ypos2):
-                matrix.SetPixel(plotpos, y, 0, 255, 0)
-        matrix.SetPixel(plotpos, ypos1, 0, 200, 0)
-        if heartbeatdelay > -100 and heartbeatdelay <= 100:
-            heartbeatdelay += 1
+                cur = cur + spd
+                if cur > tgt:
+                    cur = tgt
+                    spd = 0.0
+                ypos2 = int(matrix.height/2 * (1.0-cur))
+                for y in range(ypos2, ypos1):
+                    matrix.SetPixel(plotpos, y, 0, 255, 0)
+            elif cur > tgt:
+                cur = cur - spd
+                if cur < tgt:
+                    cur = tgt
+                    spd = 0.0
+                ypos2 = int(matrix.height/2 * (1.0-cur))
+                for y in range(ypos1, ypos2):
+                    matrix.SetPixel(plotpos, y, 0, 255, 0)
+            matrix.SetPixel(plotpos, ypos1, 0, 200, 0)
+            if heartbeatdelay > -100 and heartbeatdelay <= 100:
+                heartbeatdelay += 1
 
         try:
             buttons = i2c.read_word_data(mcp, mcp_gpio)
+            """
             for x in range(0,16):
                 if ((buttons >> x) & 1) == 0:
                     if x >= 0 and x <= 4:
@@ -157,6 +161,24 @@ try:
             leds.setPixelColor(0, Color(pixs[2], pixs[1], pixs[0]))
             leds.setPixelColor(1, Color(pixs[5], pixs[4], pixs[3]))
             leds.show()
+            """
+            if   (not buttons & 0b0000000000001000) and heartmode == 0:
+                print "Starting heart monitor"
+                heartmode = 1
+            elif (not buttons & 0b0000000000010000) and heartmode == 1:
+                print "Stopping heart monitor"
+                heartmode = 0
+            if   (not buttons & 0b0000000010000000) and heartbeatdelay != 120:
+                print "Stop beat"
+                heartbeatdelay = 120
+                spd = 0.1
+                tgt = 0.4
+                zaptry = 0
+            elif (not buttons & 0b0000000000100000) and heartbeatdelay == 120:
+                print "Start beat"
+                heartbeatdelay = -99
+                spd = 0.1
+                tgt = 0.4
         except:
             pass
         try:
@@ -174,13 +196,19 @@ try:
                 paddles.command("color 0,0,100")
                 paddles.command("flash")
                 paddles.command("color 0,0,0")
+                zaptry += 1
+                if zapcnt < (100 + (zaptry * 10)):
+                    print "It worked! Start beat!"
+                    heartbeatdelay = -99
+                    spd = 0.1
+                    tgt = 0.4
             elif zapcnt > 0:
                 zapcnt = 0
                 paddles.command("color 0,0,0")
                 paddles.command("soundoff")
         except:
             pass
-        time.sleep(0.01)
+        time.sleep(0.02)
         plotpos = (plotpos + 1) % matrix.width
 except KeyboardInterrupt:
     leds.setPixelColor(0, Color(0, 0, 0))
