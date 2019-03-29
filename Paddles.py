@@ -28,6 +28,10 @@ class Paddles(object):
                     pass
 
     def read(self):
+        if self._rescan <= 0:
+            self._reopen()
+            self._rescan = 200
+        self._rescan -= 1
         try:
             r, w, x = select.select(self._fdlist, [], [], 0)
             for jsfd in r:
@@ -39,7 +43,20 @@ class Paddles(object):
                         else:
                             self.buttons[jsdev] = False
         except:
-            pass
+            for jsdev in self._jslist.values():
+                try:
+                    jsdev.Close()
+                except:
+                    pass
+            for serdev in self._serlist.values():
+                try:
+                    serdev.Close()
+                except:
+                    pass
+            self._devlist = {}
+            self._rescan = 10
+            self._fdlist = {}
+            self._serlist = {}
         
     def command(self, line):
         try:
