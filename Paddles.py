@@ -43,6 +43,7 @@ class Paddles(object):
                         else:
                             self.buttons[jsdev] = False
         except:
+            print "Paddle read error"
             for jsdev in self._jslist.values():
                 try:
                     jsdev.Close()
@@ -64,5 +65,19 @@ class Paddles(object):
                 serdev.write(line+"\r\n")
                 serdev.reset_input_buffer()
         except:
-            pass
+            print "Paddle write error"
+            for jsdev in self._jslist.values():
+                try:
+                    jsdev.Close()
+                except:
+                    pass
+            for serdev in self._serlist.values():
+                try:
+                    serdev.Close()
+                except:
+                    pass
+            self._devlist = {}
+            self._rescan = 10
+            self._fdlist = {}
+            self._serlist = {}
             
